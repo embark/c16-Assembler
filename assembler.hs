@@ -11,25 +11,26 @@ data Var = Imm Word8 | RegID Word8 deriving (Show)
 type MachineCode = String
 type OpCode = String
 
-assemble :: String -> Maybe MachineCode
+assemble :: String -> Either String MachineCode
 assemble s = getIns (x, args)
     where args = mapM getVar xs
           (x:xs) = words . addSpaces $ s
 
-getIns :: (OpCode, Maybe [Var]) -> Maybe MachineCode
-getIns ("add", Just vars@[RegID _, RegID _, Imm _]) = return $ "00000" ++ formatVars B vars
-getIns ("add", Just vars@[RegID _, RegID _, RegID _]) = return $ "00001" ++ formatVars A vars
-getIns ("call", Just vars@[RegID _, RegID _, Imm _]) = return $ "11010" ++ formatVars B vars
-getIns ("call", Just vars@[RegID _, Imm _]) = return $ "11011" ++ formatVars C vars
-getIns ("slt", Just vars@[RegID _, RegID _, Imm _]) = return $ "00100" ++ formatVars B vars
-getIns ("slt", Just vars@[RegID _, RegID _, RegID _]) = return $ "00101" ++ formatVars A vars
-getIns ("brz", Just vars@[RegID _, RegID _, Imm _]) = return $ "11110" ++ formatVars B vars
-getIns ("brz", Just vars@[RegID _, Imm _]) = return $ "11111" ++ formatVars C vars
-getIns ("lea", Just vars@[RegID _, RegID _, Imm _]) = return $ "11000" ++ formatVars B vars
-getIns ("lea", Just vars@[RegID _, Imm _]) = return $ "11001" ++ formatVars C vars
-getIns ("shl", Just vars@[RegID _, RegID _, Imm _]) = return $ "10000" ++ formatVars B vars
-getIns ("shl", Just vars@[RegID _, RegID _, RegID _]) = return $ "10001"++ formatVars A vars
-getIns _ = Nothing
+getIns :: (OpCode, Either String [Var]) -> Either String MachineCode
+getIns ("add", Right vars@[RegID _, RegID _, Imm _]) = return $ "00000" ++ formatVars B vars
+getIns ("add", Right vars@[RegID _, RegID _, RegID _]) = return $ "00001" ++ formatVars A vars
+getIns ("call", Right vars@[RegID _, RegID _, Imm _]) = return $ "11010" ++ formatVars B vars
+getIns ("call", Right vars@[RegID _, Imm _]) = return $ "11011" ++ formatVars C vars
+getIns ("slt", Right vars@[RegID _, RegID _, Imm _]) = return $ "00100" ++ formatVars B vars
+getIns ("slt", Right vars@[RegID _, RegID _, RegID _]) = return $ "00101" ++ formatVars A vars
+getIns ("brz", Right vars@[RegID _, RegID _, Imm _]) = return $ "11110" ++ formatVars B vars
+getIns ("brz", Right vars@[RegID _, Imm _]) = return $ "11111" ++ formatVars C vars
+getIns ("lea", Right vars@[RegID _, RegID _, Imm _]) = return $ "11000" ++ formatVars B vars
+getIns ("lea", Right vars@[RegID _, Imm _]) = return $ "11001" ++ formatVars C vars
+getIns ("shl", Right vars@[RegID _, RegID _, Imm _]) = return $ "10000" ++ formatVars B vars
+getIns ("shl", Right vars@[RegID _, RegID _, RegID _]) = return $ "10001"++ formatVars A vars
+getIns (_, Left error) = Left error
+getIns _ = Left "Invalid instruction"
 
 formatVars :: Format -> [Var] -> String
 formatVars A [RegID rd, RegID ra, RegID rb] = 
@@ -53,14 +54,14 @@ pad numBits s
     | length s < numBits = pad numBits $ "0" ++ s
     | otherwise = s
 
-getVar :: String -> Maybe Var
-getVar ('r':regVal) = RegID <$> readMaybe regVal
-getVar ('$':imm) = Imm <$> readMaybe imm
-getVar _ = Nothing
+getVar :: String -> Either String Var
+getVar ('r':regVal) = RegID <$> readEither regVal
+getVar ('$':imm) = Imm <$> readEither imm
+getVar wrong = Left $ "Invalid symbol" ++ wrong
 
-readMaybe :: (Read a) => String -> Maybe a  
-readMaybe st = case reads st of [(x,"")] -> Just x  
-                                _ -> Nothing  
+readEither :: (Read a) => String -> Either String a  
+readEither st = case reads st of [(x,"")] -> return x  
+                                 _ -> Left $ "Could not parse: " ++ st  
 
 addSpaces :: String -> String
 addSpaces = map (\x -> if x == ',' || x == ' '  || x == '+' then ' ' else x) 
@@ -68,4 +69,6 @@ addSpaces = map (\x -> if x == ',' || x == ' '  || x == '+' then ' ' else x)
 main = do
     instructions <- getContents
     let results = map assemble $ lines instructions
-    mapM_ putStrLn $ map (fromMaybe "Invalid") results
+    case sequence results of
+        Left e -> ioError $ userError e
+        Right machineList -> mapM_ putStrLn machineList
