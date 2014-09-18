@@ -12,24 +12,25 @@ type MachineCode = String
 type OpCode = String
 
 assemble :: String -> Either String MachineCode
-assemble s = getIns (x, args)
-    where args = mapM getVar xs
-          (x:xs) = words . addSpaces $ s
+assemble s = case eitherVars of 
+    Left error -> Left error
+    Right vars -> getIns (opcode, vars)
+    where eitherVars = mapM getVar xs
+          (opcode:xs) = words . addSpaces $ s
 
-getIns :: (OpCode, Either String [Var]) -> Either String MachineCode
-getIns ("add", Right vars@[RegID _, RegID _, Imm _]) = return $ "00000" ++ formatVars B vars
-getIns ("add", Right vars@[RegID _, RegID _, RegID _]) = return $ "00001" ++ formatVars A vars
-getIns ("call", Right vars@[RegID _, RegID _, Imm _]) = return $ "11010" ++ formatVars B vars
-getIns ("call", Right vars@[RegID _, Imm _]) = return $ "11011" ++ formatVars C vars
-getIns ("slt", Right vars@[RegID _, RegID _, Imm _]) = return $ "00100" ++ formatVars B vars
-getIns ("slt", Right vars@[RegID _, RegID _, RegID _]) = return $ "00101" ++ formatVars A vars
-getIns ("brz", Right vars@[RegID _, RegID _, Imm _]) = return $ "11110" ++ formatVars B vars
-getIns ("brz", Right vars@[RegID _, Imm _]) = return $ "11111" ++ formatVars C vars
-getIns ("lea", Right vars@[RegID _, RegID _, Imm _]) = return $ "11000" ++ formatVars B vars
-getIns ("lea", Right vars@[RegID _, Imm _]) = return $ "11001" ++ formatVars C vars
-getIns ("shl", Right vars@[RegID _, RegID _, Imm _]) = return $ "10000" ++ formatVars B vars
-getIns ("shl", Right vars@[RegID _, RegID _, RegID _]) = return $ "10001"++ formatVars A vars
-getIns (_, Left error) = Left error
+getIns :: (OpCode, [Var]) -> Either String MachineCode
+getIns ("add", vars@[RegID _, RegID _, Imm _]) = return $ "00000" ++ formatVars B vars
+getIns ("add", vars@[RegID _, RegID _, RegID _]) = return $ "00001" ++ formatVars A vars
+getIns ("call", vars@[RegID _, RegID _, Imm _]) = return $ "11010" ++ formatVars B vars
+getIns ("call", vars@[RegID _, Imm _]) = return $ "11011" ++ formatVars C vars
+getIns ("slt", vars@[RegID _, RegID _, Imm _]) = return $ "00100" ++ formatVars B vars
+getIns ("slt", vars@[RegID _, RegID _, RegID _]) = return $ "00101" ++ formatVars A vars
+getIns ("brz", vars@[RegID _, RegID _, Imm _]) = return $ "11110" ++ formatVars B vars
+getIns ("brz", vars@[RegID _, Imm _]) = return $ "11111" ++ formatVars C vars
+getIns ("lea", vars@[RegID _, RegID _, Imm _]) = return $ "11000" ++ formatVars B vars
+getIns ("lea", vars@[RegID _, Imm _]) = return $ "11001" ++ formatVars C vars
+getIns ("shl", vars@[RegID _, RegID _, Imm _]) = return $ "10000" ++ formatVars B vars
+getIns ("shl", vars@[RegID _, RegID _, RegID _]) = return $ "10001"++ formatVars A vars
 getIns _ = Left "Invalid instruction"
 
 formatVars :: Format -> [Var] -> String
