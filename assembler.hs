@@ -58,7 +58,7 @@ pad numBits s
 getVar :: String -> Either String Var
 getVar ('r':regVal) = RegID <$> readEither regVal
 getVar ('$':imm) = Imm <$> readEither imm
-getVar wrong = Left $ "Invalid symbol" ++ wrong
+getVar wrong = Left $ "Invalid symbol: " ++ wrong
 
 readEither :: (Read a) => String -> Either String a  
 readEither st = case reads st of [(x,"")] -> return x  
