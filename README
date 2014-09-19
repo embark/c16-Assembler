@@ -1,0 +1,9 @@
+To build:
+make
+
+To run with cammand-line inputs:
+make run
+(exit with ctl-d)
+
+To run with a file:
+cat example.asm | make run
