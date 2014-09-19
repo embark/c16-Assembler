@@ -71,7 +71,7 @@ getVar sym@(s:ss)
 readImm :: Num a => String -> Either String a
 readImm ('0':'x':imm) = readImm' isHexDigit 16 imm
 readImm ('0':'o':imm) = readImm' isOctDigit 8 imm
-readImm ('0':'b':imm) = readImm' (\i -> i=='1' || i=='0') 2 imm
+readImm ('0':'b':imm) = readImm' (`elem` "01") 2 imm
 readImm imm = readImm' isDigit 10 imm
 
 readImm' :: Num a => (Char -> Bool) -> a -> String -> Either String a
