@@ -1,8 +1,7 @@
-import Data.List
+{-# LANGUAGE ViewPatterns #-}
+
 import Data.Word
-import Data.Char
-import Data.Maybe
-import Numeric
+import Data.Bits
 import Control.Applicative
 
 data Format = A String | B String | C String | Invalid deriving (Show)
@@ -13,7 +12,7 @@ type OpCode = String
 
 assemble :: String -> Either String MachineCode
 assemble s = case eitherVars of 
-    Left error -> Left error
+    Left errStr -> Left errStr
     Right vars -> getIns (opcode, vars)
     where eitherVars = mapM getVar xs
           (opcode:xs) = words . addSpaces $ s
@@ -42,19 +41,13 @@ getFormat [RegID rd, Imm imm8] =
     C $ getReg rd ++ getImm8 imm8
 getFormat _ = Invalid
 
-getReg = getBits 3
-getImm5 = getBits 5
-getImm8 = getBits 8
+getReg = getNLowestBits 3
+getImm5 = getNLowestBits 5
+getImm8 = getNLowestBits 8
 
-getBits :: Int -> Word8 -> String
-getBits numBits int = 
-    let allBits = filter (/='"') . show $ showIntAtBase 2 intToDigit int ""
-    in pad numBits . reverse . take numBits . reverse $ allBits
-
-pad :: Int -> String -> String
-pad numBits s
-    | length s < numBits = pad numBits $ "0" ++ s
-    | otherwise = s
+getNLowestBits :: Int -> Word8 -> String
+getNLowestBits n word8 = map (boolToBit . testBit word8) [n - 1, n - 2 .. 0]
+    where boolToBit bool = if bool then '1' else '0'
 
 getVar :: String -> Either String Var
 getVar ('r':regVal) = RegID <$> readEither regVal
@@ -70,7 +63,7 @@ addSpaces = map (\x -> if x == ',' || x == ' '  || x == '+' then ' ' else x)
 
 main = do
     instructions <- getContents
-    let results = map assemble $ lines instructions
-    case sequence results of
-        Left e -> ioError $ userError e
+    let results = mapM assemble $ lines instructions
+    case results of
+        Left e -> error e
         Right machineList -> mapM_ putStrLn machineList
