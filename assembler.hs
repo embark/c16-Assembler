@@ -11,6 +11,9 @@ data Var = Imm Word8 | RegID Word8 deriving (Show)
 type MachineCode = String
 type OpCode = String
 
+registers :: [(String, Var)]
+registers = [("z", RegID 7)] ++ [("r" ++ show r, RegID r) | r <- [0..7]]
+
 assemble :: String -> Either String MachineCode
 assemble s = case eitherVars of 
     Left error -> Left error
@@ -56,16 +59,33 @@ pad numBits s
     | otherwise = s
 
 getVar :: String -> Either String Var
-getVar ('r':regVal) = RegID <$> readEither regVal
-getVar ('$':imm) = Imm <$> readEither imm
-getVar wrong = Left $ "Invalid symbol: " ++ wrong
+getVar sym@(s:ss)
+    | isJust reg = Right $ fromJust reg
+    | s == '-' = Imm . negate <$> readImm ss
+    | s == '+' = Imm <$> readImm ss
+    | isDigit s = Imm <$> readImm sym
+    | otherwise = Left $ "Invalid symbol: " ++ sym
+    where reg = lookup sym registers
 
-readEither :: (Read a) => String -> Either String a  
-readEither st = case reads st of [(x,"")] -> return x  
-                                 _ -> Left $ "Could not parse: " ++ st  
+readImm :: Num a => String -> Either String a
+readImm ('0':'x':imm) = readImm' isHexDigit 16 imm
+readImm ('0':'o':imm) = readImm' isOctDigit 8 imm
+readImm ('0':'b':imm) = readImm' (\i -> i=='1' || i=='0') 2 imm
+readImm imm = readImm' isDigit 10 imm
+
+readImm' :: Num a => (Char -> Bool) -> a -> String -> Either String a
+readImm' pred base imm
+    | all pred digs = Right $ foldl (\l r -> base*l + r) 0 nums
+    | otherwise     = Left $ "Invalid immediate: " ++ imm
+    where nums = map (fromIntegral . digitToInt) digs
+          digs = filter (/= '_') imm
 
 addSpaces :: String -> String
-addSpaces = map (\x -> if x == ',' || x == ' '  || x == '+' then ' ' else x) 
+addSpaces [] = []
+addSpaces (',':ss) = ' ' : addSpaces ss
+addSpaces ('+':ss) = ' ' : '+' : addSpaces ss
+addSpaces ('-':ss) = ' ' : '-' : addSpaces ss
+addSpaces (s:ss) = s : addSpaces ss
 
 main = do
     instructions <- getContents
