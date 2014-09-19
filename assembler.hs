@@ -5,7 +5,7 @@ import Data.Maybe
 import Numeric
 import Control.Applicative
 
-data Format = A | B | C deriving (Show)
+data Format = A String | B String | C String | Invalid deriving (Show)
 data Var = Imm Word8 | RegID Word8 deriving (Show)
 
 type MachineCode = String
@@ -22,27 +22,28 @@ assemble s = case eitherVars of
           (opcode:xs) = words . addSpaces $ s
 
 getIns :: (OpCode, [Var]) -> Either String MachineCode
-getIns ("add", vars@[RegID _, RegID _, Imm _]) = return $ "00000" ++ formatVars B vars
-getIns ("add", vars@[RegID _, RegID _, RegID _]) = return $ "00001" ++ formatVars A vars
-getIns ("call", vars@[RegID _, RegID _, Imm _]) = return $ "11010" ++ formatVars B vars
-getIns ("call", vars@[RegID _, Imm _]) = return $ "11011" ++ formatVars C vars
-getIns ("slt", vars@[RegID _, RegID _, Imm _]) = return $ "00100" ++ formatVars B vars
-getIns ("slt", vars@[RegID _, RegID _, RegID _]) = return $ "00101" ++ formatVars A vars
-getIns ("brz", vars@[RegID _, RegID _, Imm _]) = return $ "11110" ++ formatVars B vars
-getIns ("brz", vars@[RegID _, Imm _]) = return $ "11111" ++ formatVars C vars
-getIns ("lea", vars@[RegID _, RegID _, Imm _]) = return $ "11000" ++ formatVars B vars
-getIns ("lea", vars@[RegID _, Imm _]) = return $ "11001" ++ formatVars C vars
-getIns ("shl", vars@[RegID _, RegID _, Imm _]) = return $ "10000" ++ formatVars B vars
-getIns ("shl", vars@[RegID _, RegID _, RegID _]) = return $ "10001"++ formatVars A vars
+getIns ("add", (getFormat -> B varCode)) = Right $ "00000" ++ varCode
+getIns ("add", (getFormat -> A varCode)) = Right $ "00001" ++ varCode
+getIns ("call", (getFormat -> B varCode)) = Right $ "11010" ++ varCode
+getIns ("call", (getFormat -> C varCode)) = Right $ "11011" ++ varCode
+getIns ("slt", (getFormat -> B varCode)) = Right $ "00100" ++ varCode
+getIns ("slt", (getFormat -> A varCode)) = Right $ "00101" ++ varCode
+getIns ("brz", (getFormat -> B varCode)) = Right $ "11110" ++ varCode
+getIns ("brz", (getFormat -> C varCode)) = Right $ "11111" ++ varCode
+getIns ("lea", (getFormat -> B varCode)) = Right $ "11000" ++ varCode
+getIns ("lea", (getFormat -> C varCode)) = Right $ "11001" ++ varCode
+getIns ("shl", (getFormat -> B varCode)) = Right $ "10000" ++ varCode
+getIns ("shl", (getFormat -> A varCode)) = Right $ "10001"++ varCode
 getIns _ = Left "Invalid instruction"
 
-formatVars :: Format -> [Var] -> String
-formatVars A [RegID rd, RegID ra, RegID rb] = 
-    getReg rd ++ getReg ra ++ "00" ++ getReg rb
-formatVars B [RegID rd, RegID ra, Imm imm5] =
-    getReg rd ++ getReg ra ++ getImm5 imm5
-formatVars C [RegID rd, Imm imm8] = 
-    getReg rd ++ getImm8 imm8
+getFormat :: [Var] -> Format
+getFormat [RegID rd, RegID ra, RegID rb] = 
+    A $ getReg rd ++ getReg ra ++ "00" ++ getReg rb
+getFormat [RegID rd, RegID ra, Imm imm5] = 
+    B $ getReg rd ++ getReg ra ++ getImm5 imm5
+getFormat [RegID rd, Imm imm8] = 
+    C $ getReg rd ++ getImm8 imm8
+getFormat _ = Invalid
 
 getReg = getBits 3
 getImm5 = getBits 5
