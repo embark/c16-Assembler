@@ -1,7 +1,10 @@
+module Assembler where
+
 import Data.List
 import Data.Word
 import Data.Char
 import Data.Maybe
+import Data.Either
 import Numeric
 import Control.Applicative
 
@@ -14,8 +17,15 @@ type OpCode = String
 registers :: [(String, Var)]
 registers = [("z", RegID 7)] ++ [("r" ++ show r, RegID r) | r <- [0..7]]
 
-assemble :: String -> Either String MachineCode
-assemble s = case eitherVars of 
+assemble :: String -> a -> Either String MachineCode
+assemble s c
+    | null errs = Right $ unlines ls
+    | otherwise = Left $ head errs
+    where machineLines = map assembleLine $ lines s
+          (errs, ls) = partitionEithers machineLines
+
+assembleLine :: String -> Either String MachineCode
+assembleLine s = case eitherVars of 
     Left error -> Left error
     Right vars -> getIns (opcode, vars)
     where eitherVars = mapM getVar xs
@@ -87,10 +97,11 @@ addSpaces (',':ss) = ' ' : addSpaces ss
 addSpaces ('+':ss) = ' ' : '+' : addSpaces ss
 addSpaces ('-':ss) = ' ' : '-' : addSpaces ss
 addSpaces (s:ss) = s : addSpaces ss
-
+{-
 main = do
     instructions <- getContents
     let results = map assemble $ lines instructions
     case sequence results of
         Left e -> ioError $ userError e
         Right machineList -> mapM_ putStrLn machineList
+-}

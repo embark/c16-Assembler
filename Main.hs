@@ -1,3 +1,6 @@
+module Main where
+
+import Assembler
 import System.Environment
 import System.IO
 import Data.Maybe
@@ -25,23 +28,20 @@ opt ("-t":n:ps) c = opt ps $ c { outtype = n }
 opt ("-o":n:ps) c = opt ps $ c { outfile = Just n }
 opt (n:ps) c = opt ps $ c { infile = Just n }
 
+use :: Maybe FilePath -> IOMode -> (Handle -> IO ()) -> IO ()
+use Nothing ReadMode = ($ stdin)
+use Nothing WriteMode = ($ stdout)
+use (Just file) mode = withFile file mode
 
 main = do
     args <- getArgs
     let config = opt args defConfig
 
-    hin <- if isNothing (infile config)
-           then return stdin
-           else openFile (fromJust $ infile config) ReadMode
+    use (infile config) ReadMode $ \hin -> do
+    use (outfile config) WriteMode $ \hout -> do
+        input <- hGetContents hin
 
-    hout <- if isNothing (outfile config)
-            then return stdout
-            else openFile (fromJust $ outfile config) WriteMode
-
-    input <- hGetContents hin
-    -- TODO assemble
-    hPutStr hout input
-
-    hClose hout
-    hClose hin
+        case assemble input config of
+            Left err -> ioError $ userError err
+            Right mc -> hPutStr hout mc
 
