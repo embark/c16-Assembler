@@ -47,6 +47,10 @@ use Nothing ReadMode = ($ stdin)
 use Nothing WriteMode = ($ stdout)
 use (Just file) mode = withFile file mode
 
+assemblerFor :: String -> (String -> Either Error [MachineCode])
+assemblerFor "bin" = assemble
+assemblerFor "hex" = assembleToHex
+
 
 main = do
     args <- getArgs
@@ -60,11 +64,13 @@ main = do
 
 
 assembleFiles config = do
+    let assembler = assemblerFor (outtype config)
+
     use (infile config) ReadMode $ \hin -> do
     use (outfile config) WriteMode $ \hout -> do
         input <- hGetContents hin
 
-        case assemble input of
+        case assembler input of
             Left e   -> error e
             Right mc -> mapM_ (hPutStrLn hout) mc
 

@@ -26,6 +26,12 @@ registers = [("z", RegID 7)] ++ [("r" ++ show r, RegID r) | r <- [0..7]]
 assemble :: String -> Either Error [MachineCode]
 assemble s = mapM assembleLine $ lines s
 
+assembleToHex :: String -> Either Error [MachineCode]
+assembleToHex s = either Left (Right . map toHex) $ assemble s
+    where toHex [] = []
+          toHex bits = (hexDigit $ take 4 bits) : (toHex $ drop 4 bits)
+          hexDigit = (intToDigit . readImmBase 2)
+
 assembleLine :: String -> Either Error MachineCode
 assembleLine s = getIns $ Assembly instruction vars
     where (instruction:vars) = words . addSpaces $ s
@@ -79,17 +85,21 @@ getVar sym@(s:ss)
     where reg = lookup sym registers
 
 readImm :: Num a => String -> Either String a
-readImm ('0':'x':imm) = readImm' isHexDigit 16 imm
-readImm ('0':'o':imm) = readImm' isOctDigit 8 imm
-readImm ('0':'b':imm) = readImm' (`elem` "01") 2 imm
-readImm imm = readImm' isDigit 10 imm
+readImm ('0':'x':imm) = readNImm isHexDigit 16 imm
+readImm ('0':'o':imm) = readNImm isOctDigit 8 imm
+readImm ('0':'b':imm) = readNImm (`elem` "01") 2 imm
+readImm imm = readNImm isDigit 10 imm
 
-readImm' :: Num a => (Char -> Bool) -> a -> String -> Either String a
-readImm' pred base imm
-    | all pred digs = Right $ foldl (\l r -> base*l + r) 0 nums
-    | otherwise     = Left $ "Invalid immediate: " ++ imm
-    where nums = map (fromIntegral . digitToInt) digs
-          digs = filter (/= '_') imm
+readNImm :: Num a => (Char -> Bool) -> a -> String -> Either String a
+readNImm pred base imm
+    | all pred digits = Right $ readImmBase base digits
+    | otherwise = Left $ "Invalid immediate: " ++ imm
+    where digits = filter (/= '_') imm
+
+readImmBase :: Num a => a -> String -> a
+readImmBase base imm = foldl (\l r -> base*l + r) 0 nums
+    where nums = map (fromIntegral . digitToInt) imm
+
 
 addSpaces :: String -> String
 addSpaces [] = []
