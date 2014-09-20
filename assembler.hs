@@ -7,7 +7,7 @@ import Data.Bits
 import Control.Applicative
 
 data Var = Imm Int16 | RegID Int16 deriving (Show)
-data Assembly = Assembly {ins :: Instruction, vars :: [String]}
+data Assembly = Assembly {ins :: Instruction, vars :: [String]} deriving (Show)
 
 type MachineCode = String
 type Instruction = String
@@ -23,8 +23,8 @@ assemble s = getIns $ Assembly instruction vars
 getIns :: Assembly -> Either Error MachineCode
 getIns (Assembly (getOp -> Right opCode) (getVarCode -> Right varCode)) = Right $ opCode ++ varCode
 getIns (Assembly (getOp -> Left errStr) _) = Left errStr
-getIns (Assembly _ (getVarCode -> Left errStr)) = Left errStr
-getIns _ = Left $ "Invalid Instruction"
+getIns asm@(Assembly _ (getVarCode -> Left errStr)) = Left $ "Invalid Instruction" ++ show asm ++ " error: " ++ errStr
+getIns asm = Left $ "Invalid Instruction: " ++ show asm
 
 getOp :: Instruction -> Either Error MachineCode
 getOp "add" = Right "0000"
@@ -43,20 +43,21 @@ getVarCode vars = case mapM getVar vars of
         where buildBits dBits aBits immBits = "0" ++ dBits ++ aBits ++ immBits
     Right [RegID rd, Imm imm8] -> buildBits <$> getReg rd <*> getImm8 imm8
         where buildBits dBits immBits = "1" ++ dBits ++ immBits
-    Right _ -> Left $ "Invalid Instruction"
+    Right _ -> Left $ "Invalid Instruction: " ++ (show vars)
     Left errStr -> Left errStr
 
-getReg = getNLowestBits 3
-getImm5 = getNLowestBits 5
-getImm8 = getNLowestBits 8
+getReg = getNLowestBits 3 False
+getImm5 = getNLowestBits 5 True
+getImm8 = getNLowestBits 8 True
 
-getNLowestBits :: Int -> Int16 -> Either Error String
-getNLowestBits n int16
+getNLowestBits :: Int -> Bool -> Int16 -> Either Error String
+getNLowestBits n isSigned int16
     | tooManyBits = Left $ "More than " ++ (show (n)) ++ " bits required to encode: " ++ (show int16)
     | otherwise = Right $ map (boolToBit . testBit int16) [n - 1, n - 2 .. 0]
     where boolToBit bool = if bool then '1' else '0'
-          tooManyBits = not (int16 `elem` [(negate limit)..(limit - 1)])
-          limit = 2^(n-1)
+          tooManyBits 
+            | isSigned = not (int16 `elem` [(negate (2^(n-1)))..(2^(n-1))])
+            | otherwise = not (int16 `elem` [0..2^n])
 
 getVar :: String -> Either String Var
 getVar sym@(s:ss)
