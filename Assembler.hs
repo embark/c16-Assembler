@@ -27,7 +27,7 @@ assemble :: String -> Either Error [MachineCode]
 assemble s = mapM assembleLine $ lines s
 
 assembleToHex :: String -> Either Error [MachineCode]
-assembleToHex s = either Left (Right . map toHex) $ assemble s
+assembleToHex s = map toHex <$> assemble s
     where toHex [] = []
           toHex bits = (hexDigit $ take 4 bits) : (toHex $ drop 4 bits)
           hexDigit = (intToDigit . readImmBase 2)
