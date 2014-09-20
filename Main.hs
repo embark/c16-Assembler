@@ -64,7 +64,7 @@ assembleFiles config = do
     use (outfile config) WriteMode $ \hout -> do
         input <- hGetContents hin
 
-        case assemble input config of
+        case assemble input of
             Left e   -> error e
-            Right mc -> hPutStr hout mc
+            Right mc -> mapM_ (hPutStrLn hout) mc
 

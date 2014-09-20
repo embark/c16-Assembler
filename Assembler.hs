@@ -23,12 +23,8 @@ type Error = String
 registers :: [(String, Var)]
 registers = [("z", RegID 7)] ++ [("r" ++ show r, RegID r) | r <- [0..7]]
 
-assemble :: String -> a -> Either String MachineCode
-assemble s c
-    | null errs = Right $ unlines ls
-    | otherwise = Left $ head errs
-    where machineLines = map assembleLine $ lines s
-          (errs, ls) = partitionEithers machineLines
+assemble :: String -> Either Error [MachineCode]
+assemble s = mapM assembleLine $ lines s
 
 assembleLine :: String -> Either Error MachineCode
 assembleLine s = getIns $ Assembly instruction vars
