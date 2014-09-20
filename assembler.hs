@@ -1,12 +1,12 @@
 {-# LANGUAGE ViewPatterns #-}
 
-import Data.Word
 import Data.Maybe
+import Data.Int
 import Data.Char
 import Data.Bits
 import Control.Applicative
 
-data Var = Imm Word8 | RegID Word8 deriving (Show)
+data Var = Imm Int16 | RegID Int16 deriving (Show)
 data Assembly = Assembly {ins :: Instruction, vars :: [String]}
 
 type MachineCode = String
@@ -37,9 +37,12 @@ getOp malformedOp = Left $ malformedOp ++ " is not a valid instruction"
 
 getVarCode :: [String] -> Either Error MachineCode
 getVarCode vars = case mapM getVar vars of
-    Right [RegID rd, RegID ra, RegID rb] -> Right $ "1" ++ getReg rd ++ getReg ra ++ "00" ++ getReg rb
-    Right [RegID rd, RegID ra, Imm imm5] -> Right $ "0" ++ getReg rd ++ getReg ra ++ getImm5 imm5
-    Right [RegID rd, Imm imm8] -> Right $ "1" ++ getReg rd ++ getImm8 imm8
+    Right [RegID rd, RegID ra, RegID rb] -> buildBits <$> getReg rd <*> getReg ra <*> getReg rb
+        where buildBits dBits aBits bBits = "1" ++ dBits ++ aBits ++ "00" ++ bBits
+    Right [RegID rd, RegID ra, Imm imm5] -> buildBits <$> getReg rd <*> getReg ra <*> getImm5 imm5
+        where buildBits dBits aBits immBits = "0" ++ dBits ++ aBits ++ immBits
+    Right [RegID rd, Imm imm8] -> buildBits <$> getReg rd <*> getImm8 imm8
+        where buildBits dBits immBits = "1" ++ dBits ++ immBits
     Right _ -> Left $ "Invalid Instruction"
     Left errStr -> Left errStr
 
@@ -47,9 +50,13 @@ getReg = getNLowestBits 3
 getImm5 = getNLowestBits 5
 getImm8 = getNLowestBits 8
 
-getNLowestBits :: Int -> Word8 -> String
-getNLowestBits n word8 = map (boolToBit . testBit word8) [n - 1, n - 2 .. 0]
+getNLowestBits :: Int -> Int16 -> Either Error String
+getNLowestBits n int16
+    | tooManyBits = Left $ "More than " ++ (show (n)) ++ " bits required to encode: " ++ (show int16)
+    | otherwise = Right $ map (boolToBit . testBit int16) [n - 1, n - 2 .. 0]
     where boolToBit bool = if bool then '1' else '0'
+          tooManyBits = not (int16 `elem` [(negate limit)..(limit - 1)])
+          limit = 2^(n-1)
 
 getVar :: String -> Either String Var
 getVar sym@(s:ss)
