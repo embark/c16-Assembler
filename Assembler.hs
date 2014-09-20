@@ -100,11 +100,4 @@ addSpaces (',':ss) = ' ' : addSpaces ss
 addSpaces ('+':ss) = ' ' : '+' : addSpaces ss
 addSpaces ('-':ss) = ' ' : '-' : addSpaces ss
 addSpaces (s:ss) = s : addSpaces ss
-{-
-main = do
-    instructions <- getContents
-    let results = mapM assemble $ lines instructions
-    case results of
-        Left e -> error e
-        Right machineList -> mapM_ putStrLn machineList
--}
+
