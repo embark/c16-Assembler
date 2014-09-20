@@ -7,6 +7,7 @@ import Data.Int
 import Data.Bits
 import Data.Char
 import Data.Maybe
+import Data.Either
 import Control.Applicative
 import Numeric
 

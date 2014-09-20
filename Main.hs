@@ -65,6 +65,6 @@ assembleFiles config = do
         input <- hGetContents hin
 
         case assemble input config of
-            Left err -> ioError $ userError err
+            Left e   -> error e
             Right mc -> hPutStr hout mc
 
