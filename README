@@ -1,9 +1,16 @@
 To build:
 make
 
-To run with cammand-line inputs:
+To run with command-line inputs:
 make run
+or
+bin/assembler
 (exit with ctl-d)
 
 To run with a file:
 cat example.asm | make run
+or
+bin/assembler example.asm
+
+For more info:
+bin/assembler --help
