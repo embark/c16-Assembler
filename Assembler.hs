@@ -1,18 +1,23 @@
+{-# LANGUAGE ViewPatterns #-}
+
 module Assembler where
 
 import Data.List
-import Data.Word
+import Data.Int
+import Data.Bits
 import Data.Char
 import Data.Maybe
-import Data.Either
-import Numeric
 import Control.Applicative
+import Numeric
 
-data Format = A String | B String | C String | Invalid deriving (Show)
-data Var = Imm Word8 | RegID Word8 deriving (Show)
+
+data Var = Imm Int16 | RegID Int16 deriving (Show)
+data Assembly = Assembly {ins :: Instruction, vars :: [String]} deriving (Show)
 
 type MachineCode = String
-type OpCode = String
+type Instruction = String
+type Error = String
+
 
 registers :: [(String, Var)]
 registers = [("z", RegID 7)] ++ [("r" ++ show r, RegID r) | r <- [0..7]]
@@ -24,50 +29,48 @@ assemble s c
     where machineLines = map assembleLine $ lines s
           (errs, ls) = partitionEithers machineLines
 
-assembleLine :: String -> Either String MachineCode
-assembleLine s = case eitherVars of 
-    Left error -> Left error
-    Right vars -> getIns (opcode, vars)
-    where eitherVars = mapM getVar xs
-          (opcode:xs) = words . addSpaces $ s
+assembleLine :: String -> Either Error MachineCode
+assembleLine s = getIns $ Assembly instruction vars
+    where (instruction:vars) = words . addSpaces $ s
+    
+getIns :: Assembly -> Either Error MachineCode
+getIns (Assembly (getOp -> Right opCode) (getVarCode -> Right varCode)) = Right $ opCode ++ varCode
+getIns (Assembly (getOp -> Left errStr) _) = Left errStr
+getIns asm@(Assembly _ (getVarCode -> Left errStr)) = Left $ "Invalid Instruction" ++ show asm ++ " error: " ++ errStr
+getIns asm = Left $ "Invalid Instruction: " ++ show asm
 
-getIns :: (OpCode, [Var]) -> Either String MachineCode
-getIns ("add", (getFormat -> B varCode)) = Right $ "00000" ++ varCode
-getIns ("add", (getFormat -> A varCode)) = Right $ "00001" ++ varCode
-getIns ("call", (getFormat -> B varCode)) = Right $ "11010" ++ varCode
-getIns ("call", (getFormat -> C varCode)) = Right $ "11011" ++ varCode
-getIns ("slt", (getFormat -> B varCode)) = Right $ "00100" ++ varCode
-getIns ("slt", (getFormat -> A varCode)) = Right $ "00101" ++ varCode
-getIns ("brz", (getFormat -> B varCode)) = Right $ "11110" ++ varCode
-getIns ("brz", (getFormat -> C varCode)) = Right $ "11111" ++ varCode
-getIns ("lea", (getFormat -> B varCode)) = Right $ "11000" ++ varCode
-getIns ("lea", (getFormat -> C varCode)) = Right $ "11001" ++ varCode
-getIns ("shl", (getFormat -> B varCode)) = Right $ "10000" ++ varCode
-getIns ("shl", (getFormat -> A varCode)) = Right $ "10001"++ varCode
-getIns _ = Left "Invalid instruction"
+getOp :: Instruction -> Either Error MachineCode
+getOp "add" = Right "0000"
+getOp "call" = Right "1101"
+getOp "slt" = Right "0010"
+getOp "brz" = Right "1111"
+getOp "lea" = Right "1100"
+getOp "shl" = Right "1000"
+getOp malformedOp = Left $ malformedOp ++ " is not a valid instruction"
 
-getFormat :: [Var] -> Format
-getFormat [RegID rd, RegID ra, RegID rb] = 
-    A $ getReg rd ++ getReg ra ++ "00" ++ getReg rb
-getFormat [RegID rd, RegID ra, Imm imm5] = 
-    B $ getReg rd ++ getReg ra ++ getImm5 imm5
-getFormat [RegID rd, Imm imm8] = 
-    C $ getReg rd ++ getImm8 imm8
-getFormat _ = Invalid
+getVarCode :: [String] -> Either Error MachineCode
+getVarCode vars = case mapM getVar vars of
+    Right [RegID rd, RegID ra, RegID rb] -> buildBits <$> getReg rd <*> getReg ra <*> getReg rb
+        where buildBits dBits aBits bBits = "1" ++ dBits ++ aBits ++ "00" ++ bBits
+    Right [RegID rd, RegID ra, Imm imm5] -> buildBits <$> getReg rd <*> getReg ra <*> getImm5 imm5
+        where buildBits dBits aBits immBits = "0" ++ dBits ++ aBits ++ immBits
+    Right [RegID rd, Imm imm8] -> buildBits <$> getReg rd <*> getImm8 imm8
+        where buildBits dBits immBits = "1" ++ dBits ++ immBits
+    Right _ -> Left $ "Invalid Instruction: " ++ (show vars)
+    Left errStr -> Left errStr
 
-getReg = getBits 3
-getImm5 = getBits 5
-getImm8 = getBits 8
+getReg = getNLowestBits 3 False
+getImm5 = getNLowestBits 5 True
+getImm8 = getNLowestBits 8 True
 
-getBits :: Int -> Word8 -> String
-getBits numBits int = 
-    let allBits = filter (/='"') . show $ showIntAtBase 2 intToDigit int ""
-    in pad numBits . reverse . take numBits . reverse $ allBits
-
-pad :: Int -> String -> String
-pad numBits s
-    | length s < numBits = pad numBits $ "0" ++ s
-    | otherwise = s
+getNLowestBits :: Int -> Bool -> Int16 -> Either Error String
+getNLowestBits n isSigned int16
+    | tooManyBits = Left $ "More than " ++ (show (n)) ++ " bits required to encode: " ++ (show int16)
+    | otherwise = Right $ map (boolToBit . testBit int16) [n - 1, n - 2 .. 0]
+    where boolToBit bool = if bool then '1' else '0'
+          tooManyBits 
+            | isSigned = not (int16 `elem` [(negate (2^(n-1)))..(2^(n-1))])
+            | otherwise = not (int16 `elem` [0..2^n])
 
 getVar :: String -> Either String Var
 getVar sym@(s:ss)
@@ -100,8 +103,8 @@ addSpaces (s:ss) = s : addSpaces ss
 {-
 main = do
     instructions <- getContents
-    let results = map assemble $ lines instructions
-    case sequence results of
-        Left e -> ioError $ userError e
+    let results = mapM assemble $ lines instructions
+    case results of
+        Left e -> error e
         Right machineList -> mapM_ putStrLn machineList
 -}
