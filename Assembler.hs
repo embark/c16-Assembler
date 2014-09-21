@@ -31,6 +31,16 @@ assembleToHex s = map toHex <$> assemble s
           toHex bits = (hexDigit $ take 4 bits) : (toHex $ drop 4 bits)
           hexDigit = (intToDigit . readImmBase 2)
 
+assembleToEmbed :: String -> Either Error [MachineCode]
+assembleToEmbed s = (addStart . addEnd) <$> stuff s
+    where stuff list = map addStuff <$> (zip [0..] <$> assembleToHex list)
+          addStart meh = first:meh
+          addEnd meh = meh ++ [last]
+          addStuff (pc, code) =
+            "\t\t16'd" ++ (show pc) ++ ": ins = 16'h" ++ code ++ ";"
+          first = "always @(*) begin\n\tcase(pc)"
+          last = "\t\tdefault: ins = 16'hffff;\n\tendcase\nend"
+
 assembleLine :: String -> Either String MachineCode
 assembleLine s =
     case eitherVars of

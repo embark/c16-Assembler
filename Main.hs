@@ -30,7 +30,7 @@ help prog = "\
     \  -m16                 Generate 16-bit code (default)\n\
     \  -m32                 Generate 32-bit code\n\
     \  -o <output>          Place the output into <file>\n\
-    \  -t [bin,hex,mif]     Specify type of output (default bin)\n\
+    \  -t [bin,hex,mif,emb] Specify type of output (default bin)\n\
     \ \n"
 
 opt :: [String] -> Config -> Config
@@ -50,7 +50,7 @@ use (Just file) mode = withFile file mode
 assemblerFor :: String -> (String -> Either Error [MachineCode])
 assemblerFor "bin" = assemble
 assemblerFor "hex" = assembleToHex
-
+assemblerFor "emb" = assembleToEmbed
 
 main = do
     args <- getArgs
