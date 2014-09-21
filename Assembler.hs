@@ -32,14 +32,16 @@ assembleToHex s = map toHex <$> assemble s
           hexDigit = (intToDigit . readImmBase 2)
 
 assembleToEmbed :: String -> Either Error [MachineCode]
-assembleToEmbed s = (addStart . addEnd) <$> stuff s
-    where stuff list = map addStuff <$> (zip [0..] <$> assembleToHex list)
-          addStart meh = first:meh
-          addEnd meh = meh ++ [last]
-          addStuff (pc, code) =
-            "\t\t16'd" ++ (show pc) ++ ": ins = 16'h" ++ code ++ ";"
+assembleToEmbed s = (addStart . addEnd) <$> format s
+    where format list = map formatCode <$> (zip [0..] <$> assembleToHex list)
+          addStart formattedCode = first:formattedCode
+          addEnd formattedCode = formattedCode ++ [last]
+          formatCode (pc, code) =
+            "\t\t16'd" ++ (show pc) ++ ": ins = 16'h" ++ code ++ ";" ++
+            " // " ++ (assembly !! pc)
           first = "always @(*) begin\n\tcase(pc)"
-          last = "\t\tdefault: ins = 16'hffff;\n\tendcase\nend"
+          last = "\t\tdefault: ins = 16'hffff; // halt\n\tendcase\nend"
+          assembly = lines s
 
 assembleLine :: String -> Either String MachineCode
 assembleLine s =
