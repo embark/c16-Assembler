@@ -4,7 +4,6 @@ BIN = bin
 TMP = tmp
 
 GFLAGS += --make
-GFLAGS += -XViewPatterns
 GFLAGS += -outputdir $(TMP)/
 
 SRC += Assembler.hs

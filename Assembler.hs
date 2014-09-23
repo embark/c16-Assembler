@@ -75,12 +75,15 @@ getFormat (getEitherFormat -> Right fmt) = fmt
 getFormat (getEitherFormat -> Left err) = Invalid
 
 getEitherFormat :: [Var] -> Either Error Format
-getEitherFormat [RegID rd, RegID ra, RegID rb] = A <$> (buildBits <$> getReg rd <*> getReg ra <*> getReg rb)
-        where buildBits dBits aBits bBits = dBits ++ aBits ++ "00" ++ bBits
-getEitherFormat [RegID rd, RegID ra, Imm imm5] = B <$> (buildBits <$> getReg rd <*> getReg ra <*> getImm5 imm5)
-        where buildBits dBits aBits immBits = dBits ++ aBits ++ immBits
-getEitherFormat [RegID rd, Imm imm8] = C <$> (buildBits <$> getReg rd <*> getImm8 imm8)
-        where buildBits dBits immBits = dBits ++ immBits
+getEitherFormat [RegID rd, RegID ra, RegID rb] = A <$> tryParse
+        where tryParse = buildBits <$> getReg rd <*> getReg ra <*> getReg rb
+              buildBits dBits aBits bBits = dBits ++ aBits ++ "00" ++ bBits
+getEitherFormat [RegID rd, RegID ra, Imm imm5] = B <$> tryParse
+        where tryParse = buildBits <$> getReg rd <*> getReg ra <*> getImm5 imm5
+              buildBits dBits aBits immBits = dBits ++ aBits ++ immBits
+getEitherFormat [RegID rd, Imm imm8] = C <$> tryParse
+        where tryParse = buildBits <$> getReg rd <*> getImm8 imm8
+              buildBits dBits immBits = dBits ++ immBits
 getEitherFormat vars = Left $ "Invalid format for vars: " ++ show vars
 
 getReg = getNLowestBits 3 False
@@ -89,12 +92,13 @@ getImm8 = getNLowestBits 8 True
 
 getNLowestBits :: Int -> Bool -> Int16 -> Either Error String
 getNLowestBits n isSigned int16
-    | tooManyBits = Left $ "More than " ++ (show (n)) ++ " bits required to encode: " ++ (show int16)
+    | tooManyBits = Left $ errMsg
     | otherwise = Right $ map (boolToBit . testBit int16) [n - 1, n - 2 .. 0]
     where boolToBit bool = if bool then '1' else '0'
           tooManyBits 
             | isSigned = not (int16 `elem` [(negate (2^(n-1)))..(2^(n-1))])
             | otherwise = not (int16 `elem` [0..2^n])
+          errMsg = "More than " ++ (show n) ++ " bits encode: " ++ (show int16)
 
 getVar :: String -> Either String Var
 getVar sym@(s:ss)
