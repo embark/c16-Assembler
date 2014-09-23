@@ -9,12 +9,14 @@ import Data.Char
 import Data.Maybe
 import Data.Either
 import Control.Applicative
+import Control.Monad
 import Numeric
 
 data Format = A String | B String | C String | Invalid
 data Var = Imm Int16 | RegID Int16 deriving (Show)
 
 type MachineCode = String
+type AssemblyCode = String
 type Instruction = String
 type Error = String
 
@@ -22,19 +24,20 @@ type Error = String
 registers :: [(String, Var)]
 registers = [("z", RegID 7)] ++ [("r" ++ show r, RegID r) | r <- [0..7]]
 
-assemble :: String -> Either Error [MachineCode]
-assemble s = mapM assembleLine $ lines s
+assemble :: AssemblyCode -> Either Error [MachineCode]
+assemble s = filter (/= "") <$> (mapM assembleLine $ lines s)
 
-assembleToHex :: String -> Either Error [MachineCode]
+assembleToHex :: AssemblyCode -> Either Error [MachineCode]
 assembleToHex s = map toHex <$> assemble s
     where toHex [] = []
           toHex bits = (hexDigit $ take 4 bits) : (toHex $ drop 4 bits)
           hexDigit = (intToDigit . readImmBase 2)
 
-assembleToEmbed :: String -> Either Error [MachineCode]
-assembleToEmbed asm = formatEmbed (lines asm) <$> assembleToHex asm
+assembleToEmbed :: AssemblyCode -> Either Error [MachineCode]
+assembleToEmbed asm = formatEmbed assemblyLines <$> assembleToHex asm
+    where assemblyLines = filter (/= "") . map cleanLine $ lines asm
 
-formatEmbed :: [String] -> [MachineCode] -> [String]
+formatEmbed :: [AssemblyCode] -> [MachineCode] -> [String]
 formatEmbed assembly codes =
     ["always@(*) begin"] ++
     ["       case(pc)"] ++
@@ -46,13 +49,19 @@ formatEmbed assembly codes =
             "\t\t16'd" ++ (show pc) ++ ": ins = 16'h" ++ code ++ ";" ++
             " // " ++ (assembly !! pc)
 
-assembleLine :: String -> Either String MachineCode
-assembleLine s =
-    case eitherVars of
-        Left errStr -> Left errStr
-        Right vars -> getIns (instruction, vars)
+assembleLine :: AssemblyCode -> Either String MachineCode
+assembleLine (words . addSpaces . cleanLine -> tokens)
+    | tokens == [] = Right ""
+    | otherwise = case eitherVars of
+            Left errStr -> Left errStr
+            Right vars -> getIns (instruction, vars)
     where eitherVars = mapM getVar vars
-          (instruction:vars) = words . addSpaces $ s
+          instruction = head $ tokens
+          vars = tail $ tokens
+
+-- Remove comments and beginning whitespace from code
+cleanLine :: AssemblyCode -> AssemblyCode
+cleanLine = dropWhile isSpace . takeWhile (/= '/')
 
 getIns :: (Instruction, [Var]) -> Either Error MachineCode
 getIns ("add", (getFormat -> B varCode)) = Right $ "00000" ++ varCode
