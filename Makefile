@@ -16,9 +16,11 @@ run:
 	$(BIN)/assembler
 
 build: $(SRC)
+	mkdir -p bin
 	$(GG) $(GFLAGS) $^ -o $(BIN)/assembler
 
 warn: $(SRC)
+	mkdir -p bin
 	$(GG) -Wall $(GFLAGS) $^ -o $(BIN)/assembler
 
 clean:
