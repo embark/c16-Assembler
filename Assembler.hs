@@ -27,7 +27,7 @@ registers :: [(String, Var)]
 registers = [("z", RegID 7)] ++ [("r" ++ show r, RegID r) | r <- [0..7]]
 
 assemble :: AssemblyCode -> Either Error [MachineCode]
-assemble s = filter (/= "") <$> sequence (zipWith (assembleLine labels) [1..] $ codeLines)
+assemble s = filter (/= "") <$> (zipWithM (assembleLine labels) [1..] $ codeLines)
     where labels = getLabels cleanLines
           cleanLines = map cleanLine . lines $ s
           codeLines = filter isAssembly cleanLines
