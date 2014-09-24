@@ -29,8 +29,8 @@ registers = [("z", RegID 7)] ++ [("r" ++ show r, RegID r) | r <- [0..7]]
 assemble :: AssemblyCode -> Either Error [MachineCode]
 assemble s = filter (/= "") <$> (zipWithM (assembleLine labels) [1..] $ codeLines)
     where labels = getLabels cleanLines
-          cleanLines = map cleanLine . lines $ s
-          codeLines = filter isAssembly cleanLines
+          cleanLines = filter isLine $ map cleanLine $ lines $ s
+          codeLines = filter isLine $ map deLabel $ cleanLines
 
 assembleToHex :: AssemblyCode -> Either Error [MachineCode]
 assembleToHex s = map toHex <$> assemble s
@@ -79,25 +79,27 @@ assembleLine labels pc line@(words . addSpaces -> tokens) =
 cleanLine :: AssemblyCode -> AssemblyCode
 cleanLine = dropWhile isSpace . takeWhile (/= '/')
 
--- Checks if a line is assembly code, not just a label
-isAssembly :: String -> Bool
-isAssembly line = (line /= "") && (not (isJust (getLabel line)))
+isLine :: AssemblyCode -> Bool
+isLine = not . null . words
+
+-- Checks for labels in assembly
+deLabel :: AssemblyCode -> AssemblyCode
+deLabel = unwords . dropWhile (isJust.getLabel) . words
 
 getLabels :: [AssemblyCode] -> LabelMap
-getLabels (x:xs) = getLabels' 0 x xs M.empty
+getLabels (x:xs) = getLabels' 0 (words x) xs M.empty
 getLabels [] = M.empty
 
-getLabels' :: Int16 -> AssemblyCode -> [AssemblyCode] -> LabelMap -> LabelMap
-getLabels' pc (getLabel -> Just label) (next:rest) map = 
-    getLabels' (pc) next rest $ M.insert label pc map
-getLabels' pc _ (next:rest) map = getLabels' (pc + 1) next rest map
+getLabels' :: Int16 -> [AssemblyCode] -> [AssemblyCode] -> LabelMap -> LabelMap
+getLabels' pc ((getLabel -> Just label):next) rest map =
+    getLabels' pc next rest $ M.insert label pc map
+getLabels' pc _ (next:rest) map = getLabels' (pc + 1) (words next) rest map
 getLabels' _ _ [] map = map
 
-getLabel (words -> code)
-            | code == [] = Nothing
-            | code == [""] = Nothing
-            | last (head code) == ':' = Just (init (head code))
-            | otherwise = Nothing
+getLabel :: AssemblyCode -> Maybe AssemblyCode
+getLabel code
+    | last code == ':' = Just (init code)
+    | otherwise = Nothing
 
 getIns :: Int16 -> (Instruction, [Var]) -> Either Error MachineCode
 getIns pc ("add", (getFormat pc -> B varCode)) = Right $ "00000" ++ varCode
@@ -140,7 +142,7 @@ getEitherFormat _ [RegID rd, Imm imm8] = C <$> tryParse
               buildBits dBits immBits = dBits ++ immBits
 getEitherFormat pc [RegID rd, Label labelPc] = CLabel <$> tryParse
         where tryParse = buildBits <$> getReg rd <*> getImm8 labelOffset
-              labelOffset = labelPc - (pc+1)
+              labelOffset = labelPc - pc
               buildBits dBits immBits = dBits ++ immBits
 getEitherFormat _ vars = Left $ "Invalid format for vars: " ++ show vars
 
