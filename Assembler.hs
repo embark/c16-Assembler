@@ -77,7 +77,7 @@ assembleLine labels pc line@(words . addSpaces -> tokens) =
 
 -- Remove comments and beginning whitespace from code
 cleanLine :: AssemblyCode -> AssemblyCode
-cleanLine = dropWhile isSpace . takeWhile (/= '/')
+cleanLine = dropWhile isSpace . takeWhile (`notElem` "/;")
 
 isLine :: AssemblyCode -> Bool
 isLine = not . null . words
