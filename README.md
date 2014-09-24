@@ -18,7 +18,7 @@ label:
     brz r4, label
 ```
 
-Requires ghc to make (on CS lab machines)
+Requires ghc to make (already on CS lab machines)
 
 To build:
 ```
