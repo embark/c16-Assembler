@@ -72,6 +72,7 @@ isAssembly line = (line /= "") && (not (isJust (getLabel line)))
 
 getLabels :: [AssemblyCode] -> LabelMap
 getLabels (x:xs) = getLabels' 0 x xs M.empty
+getLabels [] = M.empty
 
 getLabels' :: Int16 -> AssemblyCode -> [AssemblyCode] -> LabelMap -> LabelMap
 getLabels' pc (getLabel -> Just label) (next:rest) map = 
@@ -80,6 +81,7 @@ getLabels' pc _ (next:rest) map = getLabels' (pc + 1) next rest map
 getLabels' _ _ [] map = map
 
 getLabel (words -> code)
+            | code == [] = Nothing
             | code == [""] = Nothing
             | last (head code) == ':' = Just (init (head code))
             | otherwise = Nothing
