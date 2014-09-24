@@ -93,6 +93,7 @@ getLabels [] = M.empty
 getLabels' :: Int16 -> [AssemblyCode] -> [AssemblyCode] -> LabelMap -> LabelMap
 getLabels' pc ((getLabel -> Just label):next) rest map =
     getLabels' pc next rest $ M.insert label pc map
+getLabels' pc [] (next:rest) map = getLabels' pc (words next) rest map
 getLabels' pc _ (next:rest) map = getLabels' (pc + 1) (words next) rest map
 getLabels' _ _ [] map = map
 
