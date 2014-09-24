@@ -1,7 +1,9 @@
 An assembler for https://github.com/CS350C-Fall-2014/instruction-set/tree/c16
+
 Supports slt, ld, st, add, brz, call, lea, shl
 
-Supports labels, empty lines, and comments.
+Supports labels, empty lines, and comments. Follows the syntax outlined on the
+c16 github branch.
 For example:
 ```
     // Program
@@ -16,10 +18,17 @@ label:
     brz r4, label
 ```
 
-Requires ghc to make (is already on CS lab machines)
+Requires ghc to make (on CS lab machines)
 
 To build:
+```
 make
+```
+
+To run with a file:
+```
+bin/assembler example.asm
+```
 
 To run with command-line inputs:
 ```
@@ -27,10 +36,6 @@ bin/assembler
 ```
 (exit with ctl-d)
 
-To run with a file:
-```
-bin/assembler example.asm
-```
 
 For more info:
 ```
