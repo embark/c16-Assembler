@@ -136,7 +136,7 @@ getEitherFormat _ [RegID rd, Imm imm8] = C <$> tryParse
               buildBits dBits immBits = dBits ++ immBits
 getEitherFormat pc [RegID rd, Label labelPc] = CLabel <$> tryParse
         where tryParse = buildBits <$> getReg rd <*> getImm8 labelOffset
-              labelOffset = labelPc - pc
+              labelOffset = labelPc - (pc+1)
               buildBits dBits immBits = dBits ++ immBits
 getEitherFormat _ vars = Left $ "Invalid format for vars: " ++ show vars
 
