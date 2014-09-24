@@ -13,7 +13,7 @@ import Control.Applicative
 import Control.Monad
 import Numeric
 
-data Format = A String | B String | C String | CLabel String | Invalid
+data Format = A String | B String | C String | Invalid
 data Var = Imm Int16 | RegID Int16 | Label Int16 deriving (Show)
 
 type MachineCode = String
@@ -110,19 +110,14 @@ getIns pc ("shl", (getFormat pc -> B varCode)) = Right $ "10000" ++ varCode
 getIns pc ("shl", (getFormat pc -> A varCode)) = Right $ "10001"++ varCode
 getIns pc ("call", (getFormat pc -> B varCode)) = Right $ "11010" ++ varCode
 getIns pc ("call", (getFormat pc -> C varCode)) = Right $ "11011" ++ varCode
-getIns pc ("call", (getFormat pc -> CLabel varCode)) = Right $ "11011" ++ varCode
 getIns pc ("brz", (getFormat pc -> B varCode)) = Right $ "11110" ++ varCode
 getIns pc ("brz", (getFormat pc -> C varCode)) = Right $ "11111" ++ varCode
-getIns pc ("brz", (getFormat pc -> CLabel varCode)) = Right $ "11111" ++ varCode
 getIns pc ("lea", (getFormat pc -> B varCode)) = Right $ "11000" ++ varCode
 getIns pc ("lea", (getFormat pc -> C varCode)) = Right $ "11001" ++ varCode
-getIns pc ("lea", (getFormat pc -> CLabel varCode)) = Right $ "11001" ++ varCode
 getIns pc ("ld", (getFormat pc -> B varCode)) = Right $ "10100" ++ varCode
 getIns pc ("ld", (getFormat pc -> C varCode)) = Right $ "10101" ++ varCode
-getIns pc ("ld", (getFormat pc -> CLabel varCode)) = Right $ "10101" ++ varCode
 getIns pc ("st", (getFormat pc -> B varCode)) = Right $ "10110" ++ varCode
 getIns pc ("st", (getFormat pc -> C varCode)) = Right $ "10111" ++ varCode
-getIns pc ("st", (getFormat pc -> CLabel varCode)) = Right $ "10111" ++ varCode
 getIns pc (_, (getEitherFormat pc -> Left err)) = Left err
 getIns _ asm = Left $ "Invalid instruction: " ++ show asm
     
@@ -140,7 +135,7 @@ getEitherFormat _ [RegID rd, RegID ra, Imm imm5] = B <$> tryParse
 getEitherFormat _ [RegID rd, Imm imm8] = C <$> tryParse
         where tryParse = buildBits <$> getReg rd <*> getImm8 imm8
               buildBits dBits immBits = dBits ++ immBits
-getEitherFormat pc [RegID rd, Label labelPc] = CLabel <$> tryParse
+getEitherFormat pc [RegID rd, Label labelPc] = C <$> tryParse
         where tryParse = buildBits <$> getReg rd <*> getImm8 labelOffset
               labelOffset = labelPc - pc
               buildBits dBits immBits = dBits ++ immBits
