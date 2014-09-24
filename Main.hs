@@ -16,8 +16,8 @@ data Config = Config {
 defConfig :: Config
 defConfig = Config {
     isHelp = False,
-    mode = "bin",
-    outtype = "bin",
+    mode = "m16",
+    outtype = "mif",
     infile = Nothing,
     outfile = Nothing
 }
@@ -30,7 +30,7 @@ help prog = "\
     \  -m16                 Generate 16-bit code (default)\n\
     \  -m32                 Generate 32-bit code\n\
     \  -o <output>          Place the output into <file>\n\
-    \  -t [bin,hex,mif,emb] Specify type of output (default bin)\n\
+    \  -t [bin,hex,mif,emb] Specify type of output (default mif)\n\
     \ \n"
 
 opt :: [String] -> Config -> Config
@@ -51,6 +51,7 @@ assemblerFor :: String -> (String -> Either Error [MachineCode])
 assemblerFor "bin" = assemble
 assemblerFor "hex" = assembleToHex
 assemblerFor "emb" = assembleToEmbed
+assemblerFor "mif" = assembleToMif
 
 main = do
     args <- getArgs

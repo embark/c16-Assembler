@@ -39,11 +39,10 @@ assembleToHex s = map toHex <$> assemble s
           hexDigit = (intToDigit . readImmBase 2)
 
 assembleToEmbed :: AssemblyCode -> Either Error [MachineCode]
-assembleToEmbed asm = formatEmbed assemblyLines <$> assembleToHex asm
-    where assemblyLines = filter (/= "") . map cleanLine $ lines asm
+assembleToEmbed asm = formatEmbed <$> assembleToHex asm
 
-formatEmbed :: [AssemblyCode] -> [MachineCode] -> [String]
-formatEmbed assembly codes =
+formatEmbed :: [MachineCode] -> [String]
+formatEmbed codes =
     ["always@(*) begin"] ++
     ["       case(pc)"] ++
                       zipWith formatCodeLine codes [0..] ++
@@ -52,6 +51,20 @@ formatEmbed assembly codes =
     ["end"]
     where formatCodeLine code pc =
             "\t\t16'd" ++ (show pc) ++ ": ins = 16'h" ++ code ++ ";"
+
+assembleToMif :: AssemblyCode -> Either Error [MachineCode]
+assembleToMif asm = formatMif <$> assembleToHex asm
+
+formatMif :: [MachineCode] -> [String]
+formatMif codes =
+    ["Width=16;"] ++
+    ["Depth=" ++ (show $ length codes) ++ ";\n"] ++
+    ["ADDRESS_RADIX=DEC;"] ++
+    ["DATA_RADIX=HEX;\n"] ++
+    ["CONTENT BEGIN"] ++
+        zipWith formatCodeLine codes [0..] ++
+    ["END;"]
+    where formatCodeLine code pc = "\t" ++ (show pc) ++ ": " ++ code ++ ";"
 
 assembleLine :: LabelMap -> Int16 -> AssemblyCode -> Either String MachineCode
 assembleLine labels pc line@(words . addSpaces -> tokens) = 
@@ -100,6 +113,10 @@ getIns pc ("lea", (getFormat pc -> B varCode)) = Right $ "11000" ++ varCode
 getIns pc ("lea", (getFormat pc -> C varCode)) = Right $ "11001" ++ varCode
 getIns pc ("shl", (getFormat pc -> B varCode)) = Right $ "10000" ++ varCode
 getIns pc ("shl", (getFormat pc -> A varCode)) = Right $ "10001"++ varCode
+getIns pc ("ld", (getFormat pc -> B varCode)) = Right $ "10100"++ varCode
+getIns pc ("ld", (getFormat pc -> C varCode)) = Right $ "10101"++ varCode
+getIns pc ("st", (getFormat pc -> B varCode)) = Right $ "10110"++ varCode
+getIns pc ("st", (getFormat pc -> C varCode)) = Right $ "10111"++ varCode
 getIns pc (_, (getEitherFormat pc -> Left err)) = Left err
 getIns _ asm = Left $ "Invalid instruction: " ++ show asm
     
