@@ -102,21 +102,25 @@ getLabel (words -> code)
 getIns :: Int16 -> (Instruction, [Var]) -> Either Error MachineCode
 getIns pc ("add", (getFormat pc -> B varCode)) = Right $ "00000" ++ varCode
 getIns pc ("add", (getFormat pc -> A varCode)) = Right $ "00001" ++ varCode
-getIns pc ("call", (getFormat pc -> B varCode)) = Right $ "11010" ++ varCode
-getIns pc ("call", (getFormat pc -> C varCode)) = Right $ "11011" ++ varCode
 getIns pc ("slt", (getFormat pc -> B varCode)) = Right $ "00100" ++ varCode
 getIns pc ("slt", (getFormat pc -> A varCode)) = Right $ "00101" ++ varCode
+getIns pc ("shl", (getFormat pc -> B varCode)) = Right $ "10000" ++ varCode
+getIns pc ("shl", (getFormat pc -> A varCode)) = Right $ "10001"++ varCode
+getIns pc ("call", (getFormat pc -> B varCode)) = Right $ "11010" ++ varCode
+getIns pc ("call", (getFormat pc -> C varCode)) = Right $ "11011" ++ varCode
+getIns pc ("call", (getFormat pc -> CLabel varCode)) = Right $ "11011" ++ varCode
 getIns pc ("brz", (getFormat pc -> B varCode)) = Right $ "11110" ++ varCode
 getIns pc ("brz", (getFormat pc -> C varCode)) = Right $ "11111" ++ varCode
 getIns pc ("brz", (getFormat pc -> CLabel varCode)) = Right $ "11111" ++ varCode
 getIns pc ("lea", (getFormat pc -> B varCode)) = Right $ "11000" ++ varCode
 getIns pc ("lea", (getFormat pc -> C varCode)) = Right $ "11001" ++ varCode
-getIns pc ("shl", (getFormat pc -> B varCode)) = Right $ "10000" ++ varCode
-getIns pc ("shl", (getFormat pc -> A varCode)) = Right $ "10001"++ varCode
-getIns pc ("ld", (getFormat pc -> B varCode)) = Right $ "10100"++ varCode
-getIns pc ("ld", (getFormat pc -> C varCode)) = Right $ "10101"++ varCode
-getIns pc ("st", (getFormat pc -> B varCode)) = Right $ "10110"++ varCode
-getIns pc ("st", (getFormat pc -> C varCode)) = Right $ "10111"++ varCode
+getIns pc ("lea", (getFormat pc -> CLabel varCode)) = Right $ "11001" ++ varCode
+getIns pc ("ld", (getFormat pc -> B varCode)) = Right $ "10100" ++ varCode
+getIns pc ("ld", (getFormat pc -> C varCode)) = Right $ "10101" ++ varCode
+getIns pc ("ld", (getFormat pc -> CLabel varCode)) = Right $ "10101" ++ varCode
+getIns pc ("st", (getFormat pc -> B varCode)) = Right $ "10110" ++ varCode
+getIns pc ("st", (getFormat pc -> C varCode)) = Right $ "10111" ++ varCode
+getIns pc ("st", (getFormat pc -> CLabel varCode)) = Right $ "10111" ++ varCode
 getIns pc (_, (getEitherFormat pc -> Left err)) = Left err
 getIns _ asm = Left $ "Invalid instruction: " ++ show asm
     
