@@ -9,8 +9,8 @@ For example:
 ```
     ; Program
     add r0, r0, 2
-    lea r1, r7+5
-    lea r1, r7-5
+    lea r1, r7, 5
+    lea r1, r7, -5
 
     add z, z, 2
     add r0, r0, z
