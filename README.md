@@ -19,6 +19,15 @@ label:
     brz r4, label
 ```
 
+Immediates can be expressed in binary, hex, octal, or decimal:
+```
+add z, z, -1
+add z, z, -0x1
+add z, z, 0o3
+add z, z, 0b01110
+add z, z, 0b001_11
+```
+
 Requires ghc to make (already on CS lab machines)
 
 To build:
