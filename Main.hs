@@ -10,7 +10,8 @@ data Config = Config {
     mode :: String,
     outtype :: String,
     infile :: Maybe FilePath,
-    outfile :: Maybe FilePath
+    outfile :: Maybe FilePath,
+    mifSize :: Int
 } deriving (Show)
 
 defConfig :: Config
@@ -19,7 +20,8 @@ defConfig = Config {
     mode = "m16",
     outtype = "mif",
     infile = Nothing,
-    outfile = Nothing
+    outfile = Nothing,
+    mifSize = 1024
 }
 
 help :: String -> String
@@ -31,6 +33,7 @@ help prog = "\
     \  -m32                 Generate 32-bit code\n\
     \  -o <output>          Place the output into <file>\n\
     \  -t [bin,hex,mif,emb] Specify type of output (default mif)\n\
+    \  -mif-size <int>      Max instructions in mif format (default 1024)\n\
     \ \n"
 
 opt :: [String] -> Config -> Config
@@ -40,6 +43,7 @@ opt ("-m16":ps) c = opt ps $ c { mode = "m16" }
 opt ("-m32":ps) c = opt ps $ c { mode = "m32" }
 opt ("-t":n:ps) c = opt ps $ c { outtype = n }
 opt ("-o":n:ps) c = opt ps $ c { outfile = Just n }
+opt ("-mif-size":n:ps) c = opt ps $ c { mifSize = read n }
 opt (n:ps) c = opt ps $ c { infile = Just n }
 
 use :: Maybe FilePath -> IOMode -> (Handle -> IO ()) -> IO ()
@@ -47,11 +51,12 @@ use Nothing ReadMode = ($ stdin)
 use Nothing WriteMode = ($ stdout)
 use (Just file) mode = withFile file mode
 
-assemblerFor :: String -> (String -> Either Error [MachineCode])
-assemblerFor "bin" = assemble
-assemblerFor "hex" = assembleToHex
-assemblerFor "emb" = assembleToEmbed
-assemblerFor "mif" = assembleToMif
+assemblerFor :: Config -> (String -> Either Error [MachineCode])
+assemblerFor config = case (outtype config) of
+    "bin" -> assemble
+    "hex" -> assembleToHex
+    "emb" -> assembleToEmbed
+    "mif" -> assembleToMif (mifSize config)
 
 main = do
     args <- getArgs
@@ -65,7 +70,7 @@ main = do
 
 
 assembleFiles config = do
-    let assembler = assemblerFor (outtype config)
+    let assembler = assemblerFor config
 
     use (infile config) ReadMode $ \hin -> do
     use (outfile config) WriteMode $ \hout -> do
