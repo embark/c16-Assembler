@@ -58,11 +58,12 @@ assembleToMif asm = formatMif <$> assembleToHex asm
 formatMif :: [MachineCode] -> [String]
 formatMif codes =
     ["Width=16;"] ++
-    ["Depth=" ++ (show $ length codes) ++ ";\n"] ++
+    ["Depth=1024;\n"] ++
     ["ADDRESS_RADIX=DEC;"] ++
     ["DATA_RADIX=HEX;\n"] ++
     ["CONTENT BEGIN"] ++
         zipWith formatCodeLine codes [0..] ++
+        ["\t[" ++ (show (length codes))  ++ "..1023]: ffff;"] ++
     ["END;"]
     where formatCodeLine code pc = "\t" ++ (show pc) ++ ": " ++ code ++ ";"
 
