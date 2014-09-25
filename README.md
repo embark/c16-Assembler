@@ -31,7 +31,7 @@ add z, z, 0b001_11
 ```
 
 #Syntax
-There are many delmiters you can use for paramters (any of the following: '+' '-' ',' _space_). The below instruction can be expressed any of the following ways, and other combinations:
+There are many delmiters you can use for parameters (any of the following: '+' '-' ',' _space_). The below instruction can be expressed any of the following ways, and other combinations:
 ```
 add r0,r0,2
 add r0 r0 2
