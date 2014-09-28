@@ -14,13 +14,13 @@ import Control.Monad
 import Numeric
 
 data Format = A String | B String | C String | Invalid
-data Var = Imm Int16 | RegID Int16 | Label Int16 deriving (Show)
+data Var = Imm Int | RegID Int | Label Int deriving (Show)
 
 type MachineCode = String
 type AssemblyCode = String
 type Instruction = String
 type Error = String
-type LabelMap = M.Map String Int16
+type LabelMap = M.Map String Int
 
 
 registers :: [(String, Var)]
@@ -67,7 +67,7 @@ formatMif codes =
     ["END;"]
     where formatCodeLine code pc = "\t" ++ (show pc) ++ ": " ++ code ++ ";"
 
-assembleLine :: LabelMap -> Int16 -> AssemblyCode -> Either String MachineCode
+assembleLine :: LabelMap -> Int -> AssemblyCode -> Either String MachineCode
 assembleLine labels pc line@(words . addSpaces -> tokens) = 
     case eitherVars of
             Left errStr -> Left errStr
@@ -91,7 +91,7 @@ getLabels :: [AssemblyCode] -> LabelMap
 getLabels (x:xs) = getLabels' 0 (words x) xs M.empty
 getLabels [] = M.empty
 
-getLabels' :: Int16 -> [AssemblyCode] -> [AssemblyCode] -> LabelMap -> LabelMap
+getLabels' :: Int -> [AssemblyCode] -> [AssemblyCode] -> LabelMap -> LabelMap
 getLabels' pc ((getLabel -> Just label):next) rest map =
     getLabels' pc next rest $ M.insert label pc map
 getLabels' pc [] (next:rest) map = getLabels' pc (words next) rest map
@@ -103,7 +103,7 @@ getLabel code
     | last code == ':' = Just (init code)
     | otherwise = Nothing
 
-getIns :: Int16 -> (Instruction, [Var]) -> Either Error MachineCode
+getIns :: Int -> (Instruction, [Var]) -> Either Error MachineCode
 getIns pc ("add", (getFormat pc -> B varCode)) = Right $ "00000" ++ varCode
 getIns pc ("add", (getFormat pc -> A varCode)) = Right $ "00001" ++ varCode
 getIns pc ("slt", (getFormat pc -> B varCode)) = Right $ "00100" ++ varCode
@@ -120,14 +120,15 @@ getIns pc ("ld", (getFormat pc -> B varCode)) = Right $ "10100" ++ varCode
 getIns pc ("ld", (getFormat pc -> C varCode)) = Right $ "10101" ++ varCode
 getIns pc ("st", (getFormat pc -> B varCode)) = Right $ "10110" ++ varCode
 getIns pc ("st", (getFormat pc -> C varCode)) = Right $ "10111" ++ varCode
+getIns pc (".word", [Imm val]) = getNLowestBits 16 False val
 getIns pc (_, (getEitherFormat pc -> Left err)) = Left err
 getIns _ asm = Left $ "Invalid instruction: " ++ show asm
     
-getFormat :: Int16 -> [Var] -> Format
+getFormat :: Int -> [Var] -> Format
 getFormat pc (getEitherFormat pc -> Right fmt) = fmt
 getFormat pc (getEitherFormat pc -> Left err) = Invalid
 
-getEitherFormat :: Int16 -> [Var] -> Either Error Format
+getEitherFormat :: Int -> [Var] -> Either Error Format
 getEitherFormat _ [RegID rd, RegID ra, RegID rb] = A <$> tryParse
         where tryParse = buildBits <$> getReg rd <*> getReg ra <*> getReg rb
               buildBits dBits aBits bBits = dBits ++ aBits ++ "00" ++ bBits
@@ -147,15 +148,15 @@ getReg = getNLowestBits 3 False
 getImm5 = getNLowestBits 5 True
 getImm8 = getNLowestBits 8 True
 
-getNLowestBits :: Int -> Bool -> Int16 -> Either Error String
-getNLowestBits n isSigned int16
+getNLowestBits :: Int -> Bool -> Int -> Either Error String
+getNLowestBits n isSigned val
     | tooManyBits = Left $ errMsg
-    | otherwise = Right $ map (boolToBit . testBit int16) [n - 1, n - 2 .. 0]
+    | otherwise = Right $ map (boolToBit . testBit val) [n - 1, n - 2 .. 0]
     where boolToBit bool = if bool then '1' else '0'
           tooManyBits 
-            | isSigned = not (int16 `elem` [(negate (2^(n-1)))..(2^(n-1))])
-            | otherwise = not (int16 `elem` [0..2^n])
-          errMsg = "More than " ++ (show n) ++ " bits encode: " ++ (show int16)
+            | isSigned = not (val `elem` [(negate (2^(n-1)))..(2^(n-1))])
+            | otherwise = not (val `elem` [0..2^n])
+          errMsg = "More than " ++ (show n) ++ " bits encode: " ++ (show val)
 
 getVar :: LabelMap -> String -> Either String Var
 getVar labels sym@(s:ss)
