@@ -39,6 +39,14 @@ add r0, r0+2
 add r0, r0, +2
 ```
 
+#Directives
+We support _.word_ as a directive
+```
+const:
+    .word 0xcd11
+ld r0, const
+```
+
 #Usage
 Requires ghc to make (already on CS lab machines)
 
