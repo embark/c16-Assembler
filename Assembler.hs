@@ -17,7 +17,11 @@ data Format = A String String String
             | B String String String
             | C String String
             | E
-            | F String String
+            | F String
+            | G String String
+            | H String String
+            | I String
+            | J String
     deriving (Show)
 
 data Var = Imm Int | RegID Int | Label Int deriving (Show)
@@ -117,12 +121,38 @@ getIns pc ins vars
           formats = getFormats pc vars
 
 encode :: Instruction -> Format -> Either Error MachineCode
-encode "add" (A rd ra rb) = Right $ "00001" ++ rd ++ ra ++ "00" ++ rb
-encode "add" (B rd ra i)  = Right $ "00000" ++ rd ++ ra ++ i
-encode "nop" (E)          = Right $ "0000000000000000"
-encode "lea" (B rd ra i)  = Right $ "11000" ++ rd ++ ra ++ i
-encode "lea" (C rd i)     = Right $ "11001" ++ rd ++ i
-encode "set" (F rd i)     = Right $ "11000" ++ rd ++ "111" ++ i
+-- Normal Instructions --
+encode "add"  (B rd ra i)  = Right $ "00000" ++ rd ++ ra ++ i
+encode "add"  (A rd ra rb) = Right $ "00001" ++ rd ++ ra ++ "00" ++ rb
+encode "slt"  (B rd ra i)  = Right $ "00100" ++ rd ++ ra ++ i
+encode "slt"  (A rd ra rb) = Right $ "00101" ++ rd ++ ra ++ "00" ++ rb
+encode "shl"  (B rd ra i)  = Right $ "10000" ++ rd ++ ra ++ i
+encode "shl"  (A rd ra rb) = Right $ "10001" ++ rd ++ ra ++ "00" ++ rb
+encode "ld"   (B rd ra i)  = Right $ "10100" ++ rd ++ ra ++ i
+encode "ld"   (C rd i)     = Right $ "10101" ++ rd ++ i
+encode "st"   (B rd ra i)  = Right $ "10110" ++ rd ++ ra ++ i
+encode "st"   (C rd i)     = Right $ "10111" ++ rd ++ i
+encode "lea"  (B rd ra i)  = Right $ "11000" ++ rd ++ ra ++ i
+encode "lea"  (C rd i)     = Right $ "11001" ++ rd ++ i
+encode "call" (B rd ra i)  = Right $ "11010" ++ rd ++ ra ++ i
+encode "call" (C rd i)     = Right $ "11011" ++ rd ++ i
+-- Implicit Instructions --
+encode "ld"   (H rd ra)    = Right $ "10100" ++ rd ++ ra ++ "00000"
+encode "st"   (H rd ra)    = Right $ "10110" ++ rd ++ ra ++ "00000"
+encode "lea"  (H rd ra)    = Right $ "11000" ++ rd ++ ra ++ "00000"
+encode "call" (H rd ra)    = Right $ "11010" ++ rd ++ ra ++ "00000"
+encode "call" (G ra i)     = Right $ "11010101" ++ ra ++ i
+encode "call" (F i)        = Right $ "11011101" ++ i
+encode "call" (J ra)       = Right $ "11010101" ++ ra ++ "00000"
+-- Fabricated Instructions --
+encode "nop"  (E)          = Right $ "0000000000000000"
+encode "set"  (G rd i)     = Right $ "11000" ++ rd ++ "111" ++ i
+encode "mov"  (H rd ra)    = Right $ "11000" ++ rd ++ ra ++ "00000"
+encode "ret"  (E)          = Right $ "1101011110100000"
+encode "halt" (E)          = Right $ "1111111111111111"
+-- Directives --
+encode ".word" (I i)       = Right $ i
+-- Default Error --
 encode op args = Left $ "Invalid instruction: " ++ show op ++ " with " ++ show args
 
 getFormats :: Int -> [Var] -> [Either Error Format]
@@ -130,11 +160,20 @@ getFormats _ [RegID rd, RegID ra, RegID rb] = [tryParse]
     where tryParse = A <$> getReg rd <*> getReg ra <*> getReg rb
 getFormats _ [RegID rd, RegID ra, Imm imm5] = [tryParse]
     where tryParse = B <$> getReg rd <*> getReg ra <*> getImm5 imm5
-getFormats _ [RegID rd, Imm imm8] = [tryParseF, tryParseC]
-    where tryParseC = C <$> getReg rd <*> getImm8 imm8
-          tryParseF = F <$> getReg rd <*> getImm5 imm8
+getFormats _ [RegID rd, Imm imm] = [tryParseG, tryParseC]
+    where tryParseC = C <$> getReg rd <*> getImm8 imm
+          tryParseG = G <$> getReg rd <*> getImm5 imm
+getFormats _ [Imm imm] = [tryParseF, tryParseI]
+    where tryParseF = F <$> getImm8 imm
+          tryParseI = I <$> getNLowestBits 16 False imm
+getFormats _ [RegID rd, RegID ra] = [tryParse]
+    where tryParse = H <$> getReg rd <*> getReg ra
+getFormats _ [RegID ra] = [tryParse]
+    where tryParse = J <$> getReg ra
 getFormats pc [RegID rd, Label labelPc] = getFormats pc [RegID rd, Imm labelOffset]
-        where labelOffset = labelPc - pc
+    where labelOffset = labelPc - pc
+getFormats pc [Label labelPc] = getFormats pc [Imm labelOffset]
+    where labelOffset = labelPc - pc
 getFormats _ [] = [Right E]
 getFormats _ vars = [Left $ "Invalid format for vars: " ++ show vars]
 
