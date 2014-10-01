@@ -1,9 +1,12 @@
+{-# LANGUAGE ViewPatterns #-}
+
 module Main where
 
 import Assembler
 import System.Environment
 import System.IO
 import Data.Maybe
+import Data.List
 
 data Config = Config {
     isHelp :: Bool,
@@ -28,12 +31,12 @@ help :: String -> String
 help prog = "\
     \Usage: " ++ prog ++ " [options] <file>\n\
     \Options:\n\
-    \  --help               Display this help message and exit\n\
-    \  -m16                 Generate 16-bit code (default)\n\
-    \  -m32                 Generate 32-bit code\n\
-    \  -o <output>          Place the output into <file>\n\
-    \  -t [bin,hex,mif,emb] Specify type of output (default mif)\n\
-    \  -mif-size <int>      Max instructions in mif format (default 1024)\n\
+    \  --help                 Display this help message and exit\n\
+    \  -m16                   Generate 16-bit code (default)\n\
+    \  -m32                   Generate 32-bit code\n\
+    \  -o <output>            Place the output into <file>\n\
+    \  -t [bin,hex,mif,emb]   Specify type of output (default mif)\n\
+    \  --size=<int>, -s <int> Max instructions (default 1024 for mif)\n\
     \ \n"
 
 opt :: [String] -> Config -> Config
@@ -43,7 +46,8 @@ opt ("-m16":ps) c = opt ps $ c { mode = "m16" }
 opt ("-m32":ps) c = opt ps $ c { mode = "m32" }
 opt ("-t":n:ps) c = opt ps $ c { outtype = n }
 opt ("-o":n:ps) c = opt ps $ c { outfile = Just n }
-opt ("-mif-size":n:ps) c = opt ps $ c { mifSize = read n }
+opt ("-s":n:ps) c = opt ps $ c { mifSize = read n }
+opt ((stripPrefix "--size=" -> Just n):ps) c = opt ps $ c { mifSize = read n }
 opt (n:ps) c = opt ps $ c { infile = Just n }
 
 use :: Maybe FilePath -> IOMode -> (Handle -> IO ()) -> IO ()
