@@ -136,18 +136,24 @@ encode "lea"  (B rd ra i)  = Right $ "11000" ++ rd ++ ra ++ i
 encode "lea"  (C rd i)     = Right $ "11001" ++ rd ++ i
 encode "call" (B rd ra i)  = Right $ "11010" ++ rd ++ ra ++ i
 encode "call" (C rd i)     = Right $ "11011" ++ rd ++ i
+encode "brz"  (B rd ra i)  = Right $ "11110" ++ rd ++ ra ++ i
+encode "brz"  (C rd i)     = Right $ "11111" ++ rd ++ i
 -- Implicit Instructions --
 encode "ld"   (H rd ra)    = Right $ "10100" ++ rd ++ ra ++ "00000"
 encode "st"   (H rd ra)    = Right $ "10110" ++ rd ++ ra ++ "00000"
 encode "lea"  (H rd ra)    = Right $ "11000" ++ rd ++ ra ++ "00000"
 encode "call" (H rd ra)    = Right $ "11010" ++ rd ++ ra ++ "00000"
+encode "brz"  (H rd ra)    = Right $ "11110" ++ rd ++ ra ++ "00000"
 encode "call" (G ra i)     = Right $ "11010101" ++ ra ++ i
-encode "call" (F i)        = Right $ "11011101" ++ i
 encode "call" (J ra)       = Right $ "11010101" ++ ra ++ "00000"
+encode "call" (F i)        = Right $ "11011101" ++ i
 -- Fabricated Instructions --
 encode "nop"  (E)          = Right $ "0000000000000000"
 encode "set"  (G rd i)     = Right $ "11000" ++ rd ++ "111" ++ i
 encode "mov"  (H rd ra)    = Right $ "11000" ++ rd ++ ra ++ "00000"
+encode "br"   (G ra i)     = Right $ "11010111" ++ ra ++ i
+encode "br"   (J ra)       = Right $ "11010111" ++ ra ++ "00000"
+encode "br"   (F i)        = Right $ "11011111" ++ i
 encode "ret"  (E)          = Right $ "1101011110100000"
 encode "halt" (E)          = Right $ "1111111111111111"
 -- Directives --
