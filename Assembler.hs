@@ -13,15 +13,21 @@ import Control.Applicative
 import Control.Monad
 import Numeric
 
-data Format = A String String String
-            | B String String String
-            | C String String
+
+type Reg = String
+type Imm5 = String
+type Imm8 = String
+type Imm16 = String
+
+data Format = A Reg Reg Reg
+            | B Reg Reg Imm5
+            | C Reg Imm8
             | E
-            | F String
-            | G String String
-            | H String String
-            | I String
-            | J String
+            | F Imm8
+            | G Reg Imm5
+            | H Reg Reg
+            | I Imm16
+            | J Reg
     deriving (Show)
 
 data Var = Imm Int | RegID Int | Label Int deriving (Show)
