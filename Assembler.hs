@@ -120,9 +120,10 @@ getLabel code
     | otherwise = Nothing
 
 getIns :: Int -> Instruction -> [Var] -> Either Error MachineCode
-getIns pc ins vars
-    | null $ rights encodings = last encodings
-    | otherwise               = Right $ head $ rights encodings
+getIns pc ins vars = case partitionEithers encodings of 
+    (_, [encoding]) -> Right encoding
+    (errs, []) -> Left $ last errs
+    _ -> Left $ "Multiple encodings for " ++ show ins ++ " with " ++ show vars
     where encodings = map (either Left (encode ins)) formats
           formats = getFormats pc vars
 
