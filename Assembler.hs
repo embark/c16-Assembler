@@ -52,20 +52,31 @@ formatEmbed codes =
     where formatCodeLine code pc =
             "\t\t16'd" ++ (show pc) ++ ": ins = 16'h" ++ code ++ ";"
 
-assembleToMif :: AssemblyCode -> Either Error [MachineCode]
-assembleToMif asm = formatMif <$> assembleToHex asm
+assembleToMif :: Int -> AssemblyCode -> Either Error [MachineCode]
+assembleToMif maxLines asm = do
+    codeLines <- assembleToHex asm
+    if length codeLines > maxPc
+        then Left $ 
+            "The number of assembly lines cannot exceed " ++ (show maxLines)
+        else return $ formatMif maxPc codeLines
+    where maxPc = maxLines-1
 
-formatMif :: [MachineCode] -> [String]
-formatMif codes =
+formatMif :: Int -> [MachineCode] -> [String]
+formatMif maxPc codes =
     ["Width=16;"] ++
-    ["Depth=1024;\n"] ++
+    ["Depth=" ++ (show (maxPc+1)) ++ ";\n"] ++
     ["ADDRESS_RADIX=DEC;"] ++
     ["DATA_RADIX=HEX;\n"] ++
     ["CONTENT BEGIN"] ++
         zipWith formatCodeLine codes [0..] ++
-        ["\t[" ++ (show (length codes))  ++ "..1023]: ffff;"] ++
+        defaultLines ++
     ["END;"]
     where formatCodeLine code pc = "\t" ++ (show pc) ++ ": " ++ code ++ ";"
+          defaultLines
+            | length codes > maxPc = []
+            | length codes == maxPc = [formatCodeLine "ffff" maxPc]
+            | otherwise = let start = show (length codes) in
+                ["\t[" ++ start  ++ ".." ++ (show maxPc) ++ "]: ffff;"]
 
 assembleLine :: LabelMap -> Int -> AssemblyCode -> Either String MachineCode
 assembleLine labels pc line@(words . addSpaces -> tokens) = 
