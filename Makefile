@@ -7,6 +7,7 @@ GFLAGS += --make
 GFLAGS += -outputdir $(TMP)/
 
 SRC += Assembler.hs
+SRC += Encodings.hs
 SRC += Main.hs
 
 
