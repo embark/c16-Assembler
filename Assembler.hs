@@ -2,6 +2,7 @@
 
 module Assembler where
 
+import Encodings
 import Data.List
 import Data.Int
 import Data.Bits
@@ -13,13 +14,9 @@ import Control.Applicative
 import Control.Monad
 import Numeric
 
-data Format = A String | B String | C String | Invalid
+
 data Var = Imm Int | RegID Int | Label Int deriving (Show)
 
-type MachineCode = String
-type AssemblyCode = String
-type Instruction = String
-type Error = String
 type LabelMap = M.Map String Int
 
 
@@ -82,7 +79,7 @@ assembleLine :: LabelMap -> Int -> AssemblyCode -> Either String MachineCode
 assembleLine labels pc line@(words . addSpaces -> tokens) = 
     case eitherVars of
             Left errStr -> Left errStr
-            Right vars -> getIns pc (instruction, vars)
+            Right vars -> getIns pc instruction vars
     where eitherVars = mapM (getVar labels) vars
           instruction = head $ tokens
           vars = tail $ tokens
@@ -114,46 +111,35 @@ getLabel code
     | last code == ':' = Just (init code)
     | otherwise = Nothing
 
-getIns :: Int -> (Instruction, [Var]) -> Either Error MachineCode
-getIns pc ("add", (getFormat pc -> B varCode)) = Right $ "00000" ++ varCode
-getIns pc ("add", (getFormat pc -> A varCode)) = Right $ "00001" ++ varCode
-getIns pc ("slt", (getFormat pc -> B varCode)) = Right $ "00100" ++ varCode
-getIns pc ("slt", (getFormat pc -> A varCode)) = Right $ "00101" ++ varCode
-getIns pc ("shl", (getFormat pc -> B varCode)) = Right $ "10000" ++ varCode
-getIns pc ("shl", (getFormat pc -> A varCode)) = Right $ "10001"++ varCode
-getIns pc ("call", (getFormat pc -> B varCode)) = Right $ "11010" ++ varCode
-getIns pc ("call", (getFormat pc -> C varCode)) = Right $ "11011" ++ varCode
-getIns pc ("brz", (getFormat pc -> B varCode)) = Right $ "11110" ++ varCode
-getIns pc ("brz", (getFormat pc -> C varCode)) = Right $ "11111" ++ varCode
-getIns pc ("lea", (getFormat pc -> B varCode)) = Right $ "11000" ++ varCode
-getIns pc ("lea", (getFormat pc -> C varCode)) = Right $ "11001" ++ varCode
-getIns pc ("ld", (getFormat pc -> B varCode)) = Right $ "10100" ++ varCode
-getIns pc ("ld", (getFormat pc -> C varCode)) = Right $ "10101" ++ varCode
-getIns pc ("st", (getFormat pc -> B varCode)) = Right $ "10110" ++ varCode
-getIns pc ("st", (getFormat pc -> C varCode)) = Right $ "10111" ++ varCode
-getIns pc (".word", [Imm val]) = getNLowestBits 16 False val
-getIns pc (_, (getEitherFormat pc -> Left err)) = Left err
-getIns _ asm = Left $ "Invalid instruction: " ++ show asm
-    
-getFormat :: Int -> [Var] -> Format
-getFormat pc (getEitherFormat pc -> Right fmt) = fmt
-getFormat pc (getEitherFormat pc -> Left err) = Invalid
+getIns :: Int -> Instruction -> [Var] -> Either Error MachineCode
+getIns pc ins vars = case partitionEithers encodings of 
+    (_, [encoding]) -> Right encoding
+    (errs, []) -> Left $ last errs
+    _ -> Left $ "Multiple encodings for " ++ show ins ++ " with " ++ show vars
+    where encodings = map (either Left (encode ins)) formats
+          formats = getFormats pc vars
 
-getEitherFormat :: Int -> [Var] -> Either Error Format
-getEitherFormat _ [RegID rd, RegID ra, RegID rb] = A <$> tryParse
-        where tryParse = buildBits <$> getReg rd <*> getReg ra <*> getReg rb
-              buildBits dBits aBits bBits = dBits ++ aBits ++ "00" ++ bBits
-getEitherFormat _ [RegID rd, RegID ra, Imm imm5] = B <$> tryParse
-        where tryParse = buildBits <$> getReg rd <*> getReg ra <*> getImm5 imm5
-              buildBits dBits aBits immBits = dBits ++ aBits ++ immBits
-getEitherFormat _ [RegID rd, Imm imm8] = C <$> tryParse
-        where tryParse = buildBits <$> getReg rd <*> getImm8 imm8
-              buildBits dBits immBits = dBits ++ immBits
-getEitherFormat pc [RegID rd, Label labelPc] = C <$> tryParse
-        where tryParse = buildBits <$> getReg rd <*> getImm8 labelOffset
-              labelOffset = labelPc - pc
-              buildBits dBits immBits = dBits ++ immBits
-getEitherFormat _ vars = Left $ "Invalid format for vars: " ++ show vars
+getFormats :: Int -> [Var] -> [Either Error Format]
+getFormats _ [RegID rd, RegID ra, RegID rb] = [tryParse]
+    where tryParse = A <$> getReg rd <*> getReg ra <*> getReg rb
+getFormats _ [RegID rd, RegID ra, Imm imm5] = [tryParse]
+    where tryParse = B <$> getReg rd <*> getReg ra <*> getImm5 imm5
+getFormats _ [RegID rd, Imm imm] = [tryParseG, tryParseC]
+    where tryParseC = C <$> getReg rd <*> getImm8 imm
+          tryParseG = G <$> getReg rd <*> getImm5 imm
+getFormats _ [Imm imm] = [tryParseF, tryParseI]
+    where tryParseF = F <$> getImm8 imm
+          tryParseI = I <$> getNLowestBits 16 False imm
+getFormats _ [RegID rd, RegID ra] = [tryParse]
+    where tryParse = H <$> getReg rd <*> getReg ra
+getFormats _ [RegID ra] = [tryParse]
+    where tryParse = J <$> getReg ra
+getFormats pc [RegID rd, Label labelPc] = getFormats pc [RegID rd, Imm labelOffset]
+    where labelOffset = labelPc - pc
+getFormats pc [Label labelPc] = getFormats pc [Imm labelOffset]
+    where labelOffset = labelPc - pc
+getFormats _ [] = [Right E]
+getFormats _ vars = [Left $ "Invalid format for vars: " ++ show vars]
 
 getReg = getNLowestBits 3 False
 getImm5 = getNLowestBits 5 True

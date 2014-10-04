@@ -3,6 +3,7 @@
 module Main where
 
 import Assembler
+import Encodings
 import System.Environment
 import System.IO
 import Data.Maybe
