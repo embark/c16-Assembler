@@ -10,21 +10,19 @@ import Data.List
 
 data Config = Config {
     isHelp :: Bool,
-    mode :: String,
+    mode :: Mode,
     outtype :: String,
     infile :: Maybe FilePath,
-    outfile :: Maybe FilePath,
-    mifSize :: Int
+    outfile :: Maybe FilePath
 } deriving (Show)
 
 defConfig :: Config
 defConfig = Config {
     isHelp = False,
-    mode = "m16",
+    mode = M16,
     outtype = "mif",
     infile = Nothing,
-    outfile = Nothing,
-    mifSize = 1024
+    outfile = Nothing
 }
 
 help :: String -> String
@@ -36,18 +34,15 @@ help prog = "\
     \  -m32                   Generate 32-bit code\n\
     \  -o <output>            Place the output into <file>\n\
     \  -t [bin,hex,mif,emb]   Specify type of output (default mif)\n\
-    \  --size=<int>, -s <int> Max instructions (default 1024 for mif)\n\
     \ \n"
 
 opt :: [String] -> Config -> Config
 opt [] c = c
 opt ("--help":ps) c = opt ps $ c { isHelp = True }
-opt ("-m16":ps) c = opt ps $ c { mode = "m16" }
-opt ("-m32":ps) c = opt ps $ c { mode = "m32" }
+opt ("-m16":ps) c = opt ps $ c { mode = M16 }
+opt ("-m32":ps) c = opt ps $ c { mode = M32 }
 opt ("-t":n:ps) c = opt ps $ c { outtype = n }
 opt ("-o":n:ps) c = opt ps $ c { outfile = Just n }
-opt ("-s":n:ps) c = opt ps $ c { mifSize = read n }
-opt ((stripPrefix "--size=" -> Just n):ps) c = opt ps $ c { mifSize = read n }
 opt (n:ps) c = opt ps $ c { infile = Just n }
 
 use :: Maybe FilePath -> IOMode -> (Handle -> IO ()) -> IO ()
@@ -60,7 +55,7 @@ assemblerFor config = case (outtype config) of
     "bin" -> assemble
     "hex" -> assembleToHex
     "emb" -> assembleToEmbed
-    "mif" -> assembleToMif (mifSize config)
+    "mif" -> assembleToMif (mode config)
 
 main = do
     args <- getArgs

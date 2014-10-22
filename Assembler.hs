@@ -15,6 +15,7 @@ import Numeric
 
 data Format = A String | B String | C String | Invalid
 data Var = Imm Int | RegID Int | Label Int deriving (Show)
+data Mode = M16 | M32 deriving (Show)
 
 type MachineCode = String
 type AssemblyCode = String
@@ -52,31 +53,35 @@ formatEmbed codes =
     where formatCodeLine code pc =
             "\t\t16'd" ++ (show pc) ++ ": ins = 16'h" ++ code ++ ";"
 
-assembleToMif :: Int -> AssemblyCode -> Either Error [MachineCode]
-assembleToMif maxLines asm = do
+assembleToMif :: Mode -> AssemblyCode -> Either Error [MachineCode]
+assembleToMif mode asm = do
     codeLines <- assembleToHex asm
-    if length codeLines > maxPc
-        then Left $ 
-            "The number of assembly lines cannot exceed " ++ (show maxLines)
-        else return $ formatMif maxPc codeLines
-    where maxPc = maxLines-1
+    return $ formatMif mode codeLines
 
-formatMif :: Int -> [MachineCode] -> [String]
-formatMif maxPc codes =
-    ["Width=16;"] ++
-    ["Depth=" ++ (show (maxPc+1)) ++ ";\n"] ++
+formatMif :: Mode -> [MachineCode] -> [String]
+formatMif M16 codes = formatMifWidth 16 codes
+formatMif M32 codes = formatMifWidth 32 (to32bit codes)
+
+formatMifWidth :: Int -> [MachineCode] -> [String]
+formatMifWidth width codes =
+    ["Width=" ++ show width ++ ";"] ++
+    ["Depth=" ++ (show $ (length codes + 1)) ++ ";\n"] ++
     ["ADDRESS_RADIX=DEC;"] ++
     ["DATA_RADIX=HEX;\n"] ++
     ["CONTENT BEGIN"] ++
         zipWith formatCodeLine codes [0..] ++
-        defaultLines ++
+        [defaultLine] ++
     ["END;"]
     where formatCodeLine code pc = "\t" ++ (show pc) ++ ": " ++ code ++ ";"
-          defaultLines
-            | length codes > maxPc = []
-            | length codes == maxPc = [formatCodeLine "ffff" maxPc]
-            | otherwise = let start = show (length codes) in
-                ["\t[" ++ start  ++ ".." ++ (show maxPc) ++ "]: ffff;"]
+          defaultLine
+            | width == 16 = "\t" ++ (show $ length codes)  ++ ": " ++ "ffff;"
+            | width == 32 = "\t" ++ (show $ length codes)  ++ ": " ++ "ffffffff;"
+
+
+to32bit :: [MachineCode] -> [MachineCode]
+to32bit (x:y:xs) = (x ++ y) : to32bit xs
+to32bit [x] = [x ++ "ffff"]
+to32bit [] = []
 
 assembleLine :: LabelMap -> Int -> AssemblyCode -> Either String MachineCode
 assembleLine labels pc line@(words . addSpaces -> tokens) = 
