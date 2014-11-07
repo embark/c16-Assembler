@@ -122,6 +122,8 @@ getLabel code
 getIns :: Int -> (Instruction, [Var]) -> Either Error MachineCode
 getIns pc ("add", (getFormat pc -> B varCode)) = Right $ "00000" ++ varCode
 getIns pc ("add", (getFormat pc -> A varCode)) = Right $ "00001" ++ varCode
+getIns pc ("sub", (getFormat pc -> B varCode)) = Right $ "00010" ++ varCode
+getIns pc ("sub", (getFormat pc -> A varCode)) = Right $ "00011" ++ varCode
 getIns pc ("slt", (getFormat pc -> B varCode)) = Right $ "00100" ++ varCode
 getIns pc ("slt", (getFormat pc -> A varCode)) = Right $ "00101" ++ varCode
 getIns pc ("shl", (getFormat pc -> B varCode)) = Right $ "10000" ++ varCode
@@ -130,6 +132,8 @@ getIns pc ("call", (getFormat pc -> B varCode)) = Right $ "11010" ++ varCode
 getIns pc ("call", (getFormat pc -> C varCode)) = Right $ "11011" ++ varCode
 getIns pc ("brz", (getFormat pc -> B varCode)) = Right $ "11110" ++ varCode
 getIns pc ("brz", (getFormat pc -> C varCode)) = Right $ "11111" ++ varCode
+getIns pc ("brnz", (getFormat pc -> B varCode)) = Right $ "11100" ++ varCode
+getIns pc ("brnz", (getFormat pc -> C varCode)) = Right $ "11101" ++ varCode
 getIns pc ("lea", (getFormat pc -> B varCode)) = Right $ "11000" ++ varCode
 getIns pc ("lea", (getFormat pc -> C varCode)) = Right $ "11001" ++ varCode
 getIns pc ("ld", (getFormat pc -> B varCode)) = Right $ "10100" ++ varCode

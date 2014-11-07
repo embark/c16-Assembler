@@ -1,6 +1,6 @@
 An assembler for [c16](https://github.com/CS350C-Fall-2014/instruction-set/tree/c16)
 
-Supports slt, ld, st, add, brz, call, lea, shl
+Supports slt, ld, st, add, sub, brz, brnz, call, lea, shl
 
 # Features
 Supports labels, empty lines, and comments (can use ";" or "//"). 
